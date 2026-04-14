@@ -56,14 +56,14 @@
 % ══════════════════════════════════════════════════════════════
 
 \begin{center}
-    {\LARGE\bfseries Learning PDE Operators under Partial Observations:\\[4pt]
-    Towards Data-Efficient Scientific Modeling}
+    {\LARGE\bfseries Causal Full-Field Forecasting from Sparse Boundary Sensors\\[4pt]
+    via Deep Operator Networks}
 
     \vspace{18pt}
 
 
     \vspace{8pt}
-    {\small Hanoi, March 2026}
+    {\small Hanoi, April 2026}
 \end{center}
 
 \vspace{12pt}
@@ -72,47 +72,18 @@
 
 
 % ══════════════════════════════════════════════════════════════
-\begin{abstract}
+% ABSTRACT — TODO: Viết sau khi có full results
 % ══════════════════════════════════════════════════════════════
-Numerical simulation of shallow water equations (SWE) is computationally demanding, particularly for large-scale coastal environments with complex terrain. While neural operators like DeepONet offer ultra-fast surrogate modeling, they typically require dense, full-state observations. In this paper, we extend DeepONet to the partial-observation regime, demonstrating its capability to solve the inverse reconstruction problem: recovering full-field spatiotemporal dynamics exclusively from sparse boundary sensors. On the foundational PDEBench 2D SWE dataset, our Boundary-DeepONet achieves a 5.25\% relative $L_2$ error using only 16 edge sensors, remaining highly competitive with full-state baselines like the Fourier Neural Operator (5.13\%). We further validate our framework on a real-world case study of \vn{Vịnh Bắc Bộ} (Vietnam), reconstructing 168 hours of tidal propagation across a $110 \times 130$ grid mapping a highly variable 0--1,500\,m bathymetry terrain. By utilizing only 10 virtual boundary sensors---mimicking a realistic downscaling from global ocean models---the network accurately reconstructs the complex inland tidal dynamics with a 21.5\% relative error while offering a $1,000 \times$ inference speedup over a traditional Godunov HLL solver.
-\end{abstract}
+% \begin{abstract}
+% TODO
+% \end{abstract}
 
-\vspace{6pt}
-\textbf{Keywords:} Neural operators, Shallow water equations, Partial observation, Inverse reconstruction, Downscaling, \vn{Vịnh Bắc Bộ}.
-
-\vspace{12pt}
-\hrule
-\vspace{12pt}
 
 % ══════════════════════════════════════════════════════════════
-\section{Introduction}
-\label{sec:intro}
+% INTRO — TODO: Viết sau khi có full results
 % ══════════════════════════════════════════════════════════════
-
-High-resolution simulation of coastal and ocean dynamics is a critical component of modern forecasting, disaster warning, and climate modeling. Traditional approaches rely on numerical integration of the shallow water equations (SWE) using finite volume or finite difference schemes~\cite{nguyen2009godunov}. While highly accurate, these physical solvers are notoriously computationally expensive, particularly when capturing complex non-linear wave-bottom interactions over vast topographies.
-
-Recent advancements in Scientific Machine Learning (SciML) have introduced neural operators---such as the Fourier Neural Operator (FNO)~\cite{li2021fno} and DeepONet~\cite{lu2021deeponet}---as ultra-fast, data-driven surrogates. By learning maps between infinite-dimensional function spaces, neural operators can evaluate complex PDE solutions orders of magnitude faster than numerical solvers. However, a significant limitation of existing operator learning benchmarks is their reliance on full-state observation: the network expects dense measurements, such as an entire $128 \times 128$ grid of initial conditions, to compute future states~\cite{takamoto2022pdebench}. In realistic oceanographic and geophysical applications, such dense observations are practically impossible to attain. Data is primarily gathered from sparse physical buoys or satellite tracks acting as virtual boundary nodes, presenting an ill-posed inverse reconstruction challenge.
-
-In this work, we address this practical gap by investigating the efficacy of DeepONet in the heavily restricted partial-observation regime. We aim to answer: \emph{Can neural operators reconstruct highly non-linear, full-field 2D hydrodynamics using only a handful of boundary measurements?} Our contributions are threefold:
-\begin{enumerate}[label=(\arabic*), nosep]
-    \item We formulate a Partial-DeepONet mechanism that flattens sparse spatial time-series into the branch network, drastically reducing input dimensionality by over 99\%.
-    \item We benchmark this methodology on the PDEBench 2D SWE dataset. Uniquely, we prove that placing only 16 sensors on the domain edges achieves a 5.25\% error, mathematically equating the accuracy of full-state architectures.
-    \item We present a comprehensive, real-world case study of tidal propagation in \vn{Vịnh Bắc Bộ}. Utilizing realistic bathymetry and only 10 open-boundary virtual sensors representing realistic oceanographic downscaling, the network successfully reconstructs the complex regional dynamics with robust practical accuracy and massive computational speedups.
-\end{enumerate}
-
-% ══════════════════════════════════════════════════════════════
-\section{Related Work}
-\label{sec:related}
-% ══════════════════════════════════════════════════════════════
-
-\textbf{Neural operators for scientific machine learning.}
-Neural operators have emerged as powerful data-driven surrogates for solving parametric partial differential equations. The Fourier Neural Operator (FNO)~\cite{li2021fno} learns mappings between function spaces by parameterizing integral kernels in the Fourier domain, achieving strong performance on a variety of PDE benchmarks. Concurrently, DeepONet~\cite{lu2021deeponet} decomposes operator learning into a branch network (encoding the input function) and a trunk network (encoding query coordinates), offering a flexible architecture applicable to diverse operator learning tasks. These methods typically assume full access to the system state, such as complete initial or boundary conditions defined on a dense spatial grid.
-
-\textbf{Physics-informed learning.}
-Physics-informed neural networks (PINNs)~\cite{raissi2019pinns} incorporate governing equations as soft constraints via automatic differentiation, reducing the need for labeled simulation data. This paradigm has been extended to operator learning frameworks~\cite{wang2021pideeponet}. However, physics-informed approaches face two key limitations: (1)~they require an analytically tractable PDE residual, which is challenging for complex real-world domains with spatially-varying bathymetry, and (2)~they still rely on full-state observations as input. In this work, we focus on the complementary challenge of \emph{input reduction}---enabling accurate prediction from boundary-only sensor data---rather than adding physics constraints to the loss function.
-
-\paragraph{Partial Observation and Data Assimilation.}
-In real-world geophysical systems, full-state observations are rarely available. Measurements are typically limited to sparse sensors deployed at fixed locations or boundary-only signals from satellite altimetry. Classical approaches to this challenge include data assimilation techniques such as the Ensemble Kalman Filter~\cite{evensen2003enkf} and variational methods (4D-Var). However, these methods are computationally expensive and tightly coupled to specific numerical solvers. In this work, we extend operator learning to the partial-observation regime and demonstrate that DeepONet can accurately reconstruct full-field dynamics from drastically reduced input information. By treating a small number of open-boundary points as \emph{virtual sensors}---a common paradigm in nested regional ocean modeling (downscaling) where boundary forcing is extracted from global models or satellite tracks---we prove that our architecture achieves comparable accuracy to full-state baselines while using less than 1\% of the original input dimensionality.
+% \section{Introduction}
+% TODO
 
 
 % ══════════════════════════════════════════════════════════════
@@ -120,115 +91,139 @@ In real-world geophysical systems, full-state observations are rarely available.
 \label{sec:method}
 % ══════════════════════════════════════════════════════════════
 
+\subsection{Problem Formulation}
+\label{sec:problem}
+
+We study the task of \emph{causal full-field forecasting from sparse boundary sensors}. Given a physical domain $\Omega$ governed by the 2D shallow water equations (SWE), we assume:
+\begin{itemize}[nosep]
+    \item Only $K$ sensors are available, placed on the domain boundary ($K \ll N_x \times N_y$).
+    \item Each sensor records water depth $h$ as a time-series from $t=0$ to some observation time $T_\mathrm{obs}$.
+    \item The goal is to predict the full field $\eta(x, y, t)$ for all $(x,y) \in \Omega$ and all $t > T_\mathrm{obs}$.
+\end{itemize}
+
+This combines three simultaneous challenges:
+\begin{enumerate}[nosep]
+    \item \textbf{Sparse:} Sensors cover $\leq 0.1\%$ of the spatial domain.
+    \item \textbf{Boundary-only:} No interior measurements exist.
+    \item \textbf{Causal:} The model may only use past data; future sensor readings are unavailable.
+\end{enumerate}
+
+Formally, we seek a learned operator $\mathcal{G}_\theta$:
+\begin{equation}
+    \mathcal{G}_\theta : \underbrace{\bigl[\mathbf{s}(t)\bigr]_{t=0}^{T_\mathrm{obs}}}_{\text{sensor history}} \;\longmapsto\; \underbrace{\eta(x, y, t)}_{\text{full field}}, \quad t > T_\mathrm{obs}, \;\; (x,y) \in \Omega,
+    \label{eq:causal_op}
+\end{equation}
+where $\mathbf{s}(t) = [h(x_1,y_1,t), \ldots, h(x_K,y_K,t)] \in \mathbb{R}^K$ is the sensor vector at time $t$.
+
+\paragraph{Contrast with reconstruction (non-causal) setting.}
+Prior work on partial-observation DeepONet~\cite{lu2021deeponet} typically assumes access to the complete time-series $\mathbf{s}(t)$ for all $t \in [0, T]$, and predicts $\eta(x,y,t)$ at any queried time---including $t$ that has already been observed. In this setting the branch network sees the entire temporal history. We call this \emph{non-causal reconstruction}. Our causal forecasting formulation is strictly harder: the model receives a prefix of the time-series and must extrapolate both spatially (from boundary to interior) and temporally (from past to future).
+
+
 \subsection{Governing Equations}
 \label{sec:governing}
 
-The physical system under study is governed by the two-dimensional shallow water equations (SWE). These equations are derived from depth-averaging the three-dimensional Navier--Stokes equations under the assumption that the horizontal length scale is much larger than the fluid depth, leading to a hydrostatic pressure distribution. This system is foundational for modeling free-surface flows in domains such as rivers, coastal zones, and ocean basins~\cite{liu2026physics}. Recently, there has been a strong research emphasis on applying neural operators to solve such multiphysics PDEs due to their high computational cost when evaluated with classical numerical solvers~\cite{rahman2024codano, takamoto2022pdebench}.
-
-In conservative form, the unforced SWE are expressed as follows:
+The physical system is governed by the 2D shallow water equations in conservative form:
 \begin{align}
   \frac{\partial h}{\partial t} + \frac{\partial (hu)}{\partial x} + \frac{\partial (hv)}{\partial y} &= 0, \label{eq:mass} \\[4pt]
   \frac{\partial (hu)}{\partial t} + \frac{\partial}{\partial x}\!\left(hu^2 + \frac{1}{2}g h^2\right) + \frac{\partial (huv)}{\partial y} &= 0, \label{eq:momx} \\[4pt]
   \frac{\partial (hv)}{\partial t} + \frac{\partial (huv)}{\partial x} + \frac{\partial}{\partial y}\!\left(hv^2 + \frac{1}{2}g h^2\right) &= 0, \label{eq:momy}
 \end{align}
-where the state variables are defined as:
-\begin{itemize}[nosep]
-  \item $h(x,y,t) \geq 0$: local water depth (m), which acts as the primary prognostic variable.
-  \item $u(x,y,t)$ and $v(x,y,t)$: depth-averaged velocity components in the $x$- and $y$-directions (m/s).
-  \item $hu$ and $hv$: specific discharges or volumetric fluxes per unit width.
-  \item $g = 9.81\,\text{m/s}^2$: gravitational acceleration.
-\end{itemize}
+where $h(x,y,t)$ is water depth, $u,v$ are depth-averaged velocities, and $g = 9.81\,\text{m/s}^2$. This system is used as the foundational benchmark in PDEBench~\cite{takamoto2022pdebench}, where each simulation is a radial dam-break with different initial conditions.
 
-The system represents the fundamental conservation laws of continuum mechanics applied to shallow fluids:
-\begin{itemize}
-  \item \textbf{Conservation of Mass (\cref{eq:mass}):} Also known as the continuity equation. It dictates that the local rate of change in water depth ($\partial h/\partial t$) is strictly balanced by the net spatial divergence of the fluid fluxes ($\partial (hu)/\partial x + \partial (hv)/\partial y$).
-  \item \textbf{Conservation of Momentum (\cref{eq:momx,eq:momy}):} These equations balance the time rate of change of momentum (local acceleration, $\partial (hu)/\partial t$) with the spatial gradients of momentum fluxes. The spatial flux terms decompose into two critical physical mechanisms:
-  \begin{itemize}[nosep]
-      \item \textit{Advective momentum transfer} ($\partial(hu^2)/\partial x$, $\partial(huv)/\partial y$, etc.): The non-linear transport of momentum by the flow field itself. These nonlinearities are responsible for complex phenomena like wave steepening, shock formation, and hydraulic jumps, making the equations notoriously difficult to solve numerically.
-      \item \textit{Hydrostatic pressure gradient} ($\partial(\tfrac{1}{2}gh^2)/\partial x, \partial(\tfrac{1}{2}gh^2)/\partial y$): The restoring force dynamically driven by spatial gradients in the free-surface elevation.
-  \end{itemize}
-\end{itemize}
 
-While real-world coastal dynamics often require additional source terms to model bottom friction, Coriolis forces, and surface wind stress~\cite{liu2026physics}, the homogeneous conservative form in \cref{eq:mass}--\cref{eq:momy} is widely adopted in foundational machine learning benchmarks---such as the PDEBench radial dam break dataset~\cite{takamoto2022pdebench}---because it isolates and rigidly tests the neural operator's ability to learn robust, multiphysics shock-capturing behaviors~\cite{rahman2024codano}.
+\subsection{Baseline: Non-Causal Boundary-DeepONet}
+\label{sec:baseline_deeponet}
 
-\subsection{Operator Learning Task}
-\label{sec:operator}
+Our baseline is a standard DeepONet~\cite{lu2021deeponet} operating in the \emph{non-causal reconstruction} regime:
 
-Traditional numerical methods solve eqs.~\eqref{eq:mass}--\eqref{eq:momy} by time-stepping from a given initial condition, which is computationally expensive. Our goal is to replace this iterative solve with a learned solution operator $\mathcal{G}$ that directly maps the scenario description to the full spatiotemporal solution in a single forward pass.
-
-\textbf{Full-state setting (baseline).}
-The operator receives the complete initial condition field:
+\textbf{Branch Network} (MLP). Receives the flattened sensor time-series across the full temporal window:
 \begin{equation}
-    \mathcal{G}_{\text{full}} : u_0(x,y) \;\longmapsto\; h(x,y,t), \quad \forall\, (x,y) \in \Omega,\; t \in (0,T].
-    \label{eq:fullop}
+    \mathbf{u}_\mathrm{branch} = \mathrm{flatten}\bigl[\mathbf{s}(t_0), \ldots, \mathbf{s}(t_T)\bigr] \in \mathbb{R}^{K \cdot N_t}.
+\end{equation}
+With $K=16$ sensors and $N_t=101$ timesteps: $d_\mathrm{in} = 1{,}616$. Note that the branch observes the future (non-causal).
+
+\textbf{Trunk Network} (MLP). Encodes query location $(\tilde{x}, \tilde{y}, \tilde{t}) \in [-1,1]^3$:
+\begin{equation}
+    \mathbf{t} = \mathcal{T}(\tilde{x}, \tilde{y}, \tilde{t}) \in \mathbb{R}^{p}.
 \end{equation}
 
-\textbf{Partial-observation setting (proposed).}
-We assume access to $K$ fixed sensor locations $\{(x_k, y_k)\}_{k=1}^{K}$, where $K \ll N_x \times N_y$, that record the water depth continuously over time:
+\textbf{Output:}
 \begin{equation}
-    \mathcal{G}_{\text{partial}} : \mathbf{s}(t) = \bigl[h(x_1,y_1,t),\,\ldots,\,h(x_K,y_K,t)\bigr]_{t=t_0}^{T} \;\longmapsto\; h(x,y,t).
-    \label{eq:partialop}
-\end{equation}
-The operator never sees the spatial structure of the field at any single instant; it must reconstruct global dynamics solely from the temporal correlations embedded in the sparse sensor signals.
-
-\subsection{DeepONet Architecture}
-\label{sec:deeponet}
-
-We employ the Deep Operator Network (DeepONet)~\cite{lu2021deeponet}, which decomposes the operator into two cooperating subnetworks.
-
-\textbf{Branch Network $\mathcal{B}$.}
-Encodes the input function (scenario description) into a latent vector:
-\begin{equation}
-    \mathcal{B}: \mathbb{R}^{d_{\text{in}}} \to \mathbb{R}^{p}, \qquad \mathbf{b} = \mathcal{B}(\mathbf{u}_{\text{input}}),
-\end{equation}
-where $d_{\text{in}}$ depends on the observation regime and $p$ is the latent dimension.
-
-\textbf{Trunk Network $\mathcal{T}$.}
-Encodes the query location (where and when to evaluate the solution):
-\begin{equation}
-    \mathcal{T}: (\tilde{x}, \tilde{y}, \tilde{t}) \in [-1,1]^3 \to \mathbb{R}^{p}, \qquad \mathbf{t} = \mathcal{T}(\tilde{x}, \tilde{y}, \tilde{t}),
-\end{equation}
-where coordinates are normalized via min-max scaling.
-
-\textbf{Output combination.}
-The prediction at any query point is obtained via inner product plus a learnable bias:
-\begin{equation}
-    \hat{h}(x,y,t) = \sum_{i=1}^{p} b_i \cdot t_i + b_0.
+    \hat{\eta}(x,y,t) = \sum_{i=1}^{p} b_i \cdot t_i + b_0.
     \label{eq:deeponet_output}
 \end{equation}
-This is analogous to a basis expansion: the trunk learns universal spatial modes, while the branch learns scenario-specific coefficients.
 
-Both networks are implemented as 4-layer MLPs with width 256, GELU activation~\cite{hendrycks2016gelu}, and latent dimension $p = 128$, totaling $\sim$4.66$\times 10^6$ parameters.
+Architecture: 4-layer MLPs, width 256, GELU activation, latent $p = 128$.
 
-\subsection{Partial Observation Encoding}
-\label{sec:partial}
 
-The distinction between settings lies entirely in the branch input.
+\subsection{ForecastDeepONet: Causal Architecture}
+\label{sec:forecast_deeponet}
 
-\textbf{Full-state input.}
-The branch receives the flattened initial condition:
+We propose \textbf{ForecastDeepONet}, modifying two key components of the baseline to achieve causal forecasting capability.
+
+\subsubsection{Causal LSTM Branch}
+
+We replace the MLP branch with an LSTM encoder that processes the sensor time-series \emph{sequentially} from $t=0$ to $t=T_\mathrm{obs}$:
 \begin{equation}
-    \mathbf{u}_{\text{full}} = \text{flatten}\bigl[h(x_i, y_j, t{=}0)\bigr] \in \mathbb{R}^{N_x \cdot N_y}.
+    \mathbf{h}_T, \mathbf{c}_T = \mathrm{LSTM}\bigl(\mathbf{s}(t_0), \ldots, \mathbf{s}(t_{T_\mathrm{obs}}})\bigr),
 \end{equation}
-For PDEBench ($N_x = N_y = 128$): $d_{\text{in}} = 16\text{,}384$.
-
-\textbf{Partial input (proposed).}
-$K$ sensors on a uniform $\sqrt{K} \times \sqrt{K}$ sub-grid record time-series across all $N_t$ steps:
 \begin{equation}
-    \mathbf{u}_{\text{partial}} = \text{flatten}\bigl[h(x_k, y_k, t_j)\bigr]_{k=1,\ldots,K}^{j=1,\ldots,N_t} \in \mathbb{R}^{K \cdot N_t}.
+    \mathbf{b} = W_\mathrm{proj} \cdot \mathbf{h}_T^{(\text{top})} \in \mathbb{R}^p,
 \end{equation}
-With $K=16$ sensors and $N_t = 101$: $d_{\text{in}} = 1\text{,}616$, a $\sim$90\% reduction.
+where $\mathbf{h}_T^{(\text{top})}$ is the hidden state of the final LSTM layer at the last timestep. By construction, the LSTM output at time $T_\mathrm{obs}$ depends only on inputs $t \leq T_\mathrm{obs}$, enforcing strict causality without any architectural leakage.
 
-We further distinguish \textbf{interior sensors} (distributed across the domain) from \textbf{boundary-only sensors} (placed exclusively on the four edges). The latter directly mimics real-world tidal gauge deployments.
+Architecture: $\mathrm{LSTM}(\text{input\_size}=K, \text{hidden}=256, \text{layers}=2)$ followed by a linear projection to $\mathbb{R}^p$.
 
-\subsection{Training Objective}
+\subsubsection{Fourier Positional Encoding for Trunk}
+\label{sec:fourier_pe}
+
+A standard MLP trunk receiving only 3 scalar coordinates $(x,y,t)$ struggles to represent high-frequency spatial patterns~\cite{mildenhall2020nerf}. We apply Fourier positional encoding before the trunk MLP:
+\begin{equation}
+    \phi(x, y, t) = \Bigl[x,\, y,\, t,\; \sin(\pi \cdot 2^k \cdot x),\, \cos(\pi \cdot 2^k \cdot x),\; \ldots\Bigr]_{k=0}^{L-1},
+\end{equation}
+expanding $\mathbb{R}^3 \to \mathbb{R}^{3 + 3 \times L \times 2}$. With $L=8$ frequency bands, the trunk input becomes 51-dimensional.
+
+\paragraph{Distinction from Fourier Neural Operator (FNO).}
+This encoding is \emph{not} FNO~\cite{li2021fno}. FNO performs actual FFT on the full spatial grid and requires dense field-to-field input---incompatible with sparse sensors. Our Fourier PE is a fixed, input-level encoding of point coordinates that helps the MLP represent high-frequency basis functions, fully compatible with the sparse-to-field DeepONet paradigm.
+
+\subsubsection{Full Architecture Summary}
+
+\begin{table}[H]
+\centering
+\caption{Architecture comparison: Baseline (Boundary-DeepONet) vs.\ proposed ForecastDeepONet.}
+\label{tab:architecture}
+\vspace{4pt}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Component} & \textbf{Boundary-DeepONet} & \textbf{ForecastDeepONet} \\
+\midrule
+Branch encoder   & MLP (non-causal)             & LSTM (causal) \\
+Branch input     & $K \times N_t$ flattened      & $(T_\mathrm{obs}, K)$ sequential \\
+Temporality      & Sees all $t \in [0,T]$        & Sees only $t \leq T_\mathrm{obs}$ \\
+Trunk encoding   & Raw $(x,y,t)$, 3D             & Fourier PE, 51D \\
+Latent dim $p$   & 128                           & 256 \\
+Parameters       & $\sim$4.7M                    & $\sim$1.1M \\
+\midrule
+Task             & Reconstruction ($\forall t$)  & Forecasting ($t > T_\mathrm{obs}$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Training Strategy}
 \label{sec:training}
 
-The model minimizes the mean squared error between predictions and reference numerical solutions at randomly sampled query points:
+\subsubsection{Random Horizon Sampling}
+At each training step, we sample $T_\mathrm{obs} \sim \mathrm{Uniform}(T_\mathrm{min}, T_\mathrm{max})$. The branch receives sensor history $\mathbf{s}(0:T_\mathrm{obs})$, while the trunk samples query points only from $t > T_\mathrm{obs}$. This exposes the model to all possible observation lengths during training, ensuring robustness across forecast horizons at inference.
+
+\subsubsection{Loss Function}
+Mean squared error between predicted and reference values at randomly sampled future query points:
 \begin{equation}
-    \mathcal{L} = \frac{1}{M}\sum_{m=1}^{M}\bigl(\hat{h}(x_m, y_m, t_m) - h^{\star}(x_m, y_m, t_m)\bigr)^2,
+    \mathcal{L} = \frac{1}{M}\sum_{m=1}^{M}\bigl(\hat{\eta}(x_m, y_m, t_m) - \eta^{\star}(x_m, y_m, t_m)\bigr)^2, \quad t_m > T_\mathrm{obs}.
 \end{equation}
-where $h^{\star}$ denotes the reference solution. All models are trained with AdamW~\cite{loshchilov2019adamw} ($\alpha_0 = 10^{-3}$, weight decay $10^{-4}$), cosine annealing schedule, gradient clipping (max norm 1.0), for 50 epochs.
+
+\subsubsection{Optimization}
+AdamW~\cite{loshchilov2019adamw} ($\alpha = 10^{-3}$, weight decay $10^{-4}$), gradient clipping (max norm 1.0), 100 epochs on a single NVIDIA L40S GPU.
 
 
 % ══════════════════════════════════════════════════════════════
@@ -236,185 +231,161 @@ where $h^{\star}$ denotes the reference solution. All models are trained with Ad
 \label{sec:experiments}
 % ══════════════════════════════════════════════════════════════
 
-\subsection{Benchmark on PDEBench 2D Shallow Water}
+\subsection{Benchmark: PDEBench 2D Shallow Water}
 \label{sec:pdebench}
 
 \subsubsection{Dataset}
-
-We evaluate on the PDEBench~\cite{takamoto2022pdebench} 2D SWE dataset (Radial Dam Break, file \texttt{2D\_rdb\_NA\_NA.h5}). The dataset contains $N = 1\text{,}000$ independent simulations with varying initial conditions, each producing $h(x,y,t)$ on a $128 \times 128$ grid over 101 time steps ($t \in [0,1]$). We use an 80/20 train-validation split (800/200 scenarios).
+We evaluate on the PDEBench~\cite{takamoto2022pdebench} 2D SWE dataset (Radial Dam Break). The dataset contains $N = 1{,}000$ simulations on a $128 \times 128$ grid over 101 timesteps. We use 800 for training and 200 for validation. Sensors are 16 points placed on the four domain edges (4 per edge), covering 16/16{,}384 = \textbf{0.098\%} of the grid.
 
 \subsubsection{Evaluation Metric}
-
-Following PDEBench protocol, we report the Relative L2 Error:
+Relative L2 error averaged over all validation samples:
 \begin{equation}
-    \varepsilon_{\text{Rel-L2}} = \frac{\|\hat{\eta} - \eta^{\star}\|_2}{\|\eta^{\star}\|_2},
+    \varepsilon_{\text{Rel-L2}} = \frac{\|\hat{\eta} - \eta^{\star}\|_2}{\|\eta^{\star}\|_2}.
 \end{equation}
-averaged over all validation samples.
 
-\subsubsection{Experimental Configurations}
+\subsubsection{Results: Non-Causal Baselines}
 
-Three model configurations are trained on the same dataset and split:
+We first establish the performance ceiling with non-causal models that observe the full temporal window:
+
+\begin{table}[H]
+\centering
+\caption{Non-causal reconstruction baselines on PDEBench 2D SWE. All models access the full time-series.}
+\label{tab:baselines}
+\vspace{4pt}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Model} & \textbf{Observation} & \textbf{Rel.\ L2 (\%)} $\downarrow$ & \textbf{Source} \\
+\midrule
+U-Net & Full $128 \times 128$ field & 12.80 & \cite{takamoto2022pdebench} \\
+FNO-2D & Full $128 \times 128$ field & 5.13 & \cite{takamoto2022pdebench} \\
+DeepONet (full-state) & Complete IC ($d_\mathrm{in} = 16{,}384$) & 3.74 & Ours \\
+\midrule
+\multicolumn{4}{l}{\textit{Partial observation (non-causal):}} \\
+Partial-DeepONet (interior) & 16 interior sensors $\times T$ & 3.95 & Ours \\
+Boundary-DeepONet (edges) & 16 boundary sensors $\times T$ & 5.25 & Ours \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Our Boundary-DeepONet achieves 5.25\% using only boundary sensors---competitive with FNO (5.13\%) that requires the full $128\times128$ field. This establishes that boundary-only observation is viable.
+
+\subsubsection{Results: Causal Forecasting (Main Result)}
+
+We now evaluate ForecastDeepONet, which operates under the strictly harder causal constraint: only past data, predict future.
+
+\begin{table}[H]
+\centering
+\caption{ForecastDeepONet: Causal forecasting from 16 boundary sensors on PDEBench 2D SWE. Evaluated by observation horizon $T_\mathrm{obs}$.}
+\label{tab:causal}
+\vspace{4pt}
+\begin{tabular}{ccccc}
+\toprule
+$T_\mathrm{obs}$ & \textbf{Future steps} & \textbf{Rel.\ L2 (\%)} $\downarrow$ & \textbf{Baseline} & \textbf{Speedup} \\
+\midrule
+20 ts & 81 future & 4.72 & 9.80 & $2.1\times$ \\
+40 ts & 61 future & 4.43 & 9.52 & $2.1\times$ \\
+60 ts & 41 future & 4.33 & 9.82 & $2.3\times$ \\
+80 ts & 21 future & 4.46 & 10.23 & $2.3\times$ \\
+\midrule
+\textbf{Average} & & \textbf{4.46} & $\sim$10 & $\mathbf{2.2\times}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Key findings.}
 \begin{enumerate}[nosep]
-    \item \textbf{DeepONet -- Full-State (Baseline):} Branch receives complete $128 \times 128$ initial condition ($d_{\text{in}} = 16\text{,}384$).
-    \item \textbf{Partial-DeepONet -- Interior Sensors:} Branch receives time-series from 16 sensors on a $4 \times 4$ interior grid ($d_{\text{in}} = 1\text{,}616$).
-    \item \textbf{Boundary-DeepONet -- Edge Sensors:} Branch receives time-series from 16 sensors placed exclusively on the four domain edges ($d_{\text{in}} = 1\text{,}616$).
+    \item \textbf{Causal outperforms non-causal.} ForecastDeepONet (4.46\%, causal) surpasses Boundary-DeepONet (5.25\%, non-causal) despite having strictly less information. The LSTM extracts temporal dynamics more effectively than an MLP processing a flattened time-series.
+    \item \textbf{No forecast degradation.} Error remains stable (4.33--4.72\%) across all horizons, from 21 to 81 future timesteps. The model does not degrade when asked to predict further into the future.
+    \item \textbf{No overfitting.} Train Rel L2 = 4.38\%, Val Rel L2 = 4.36\% (gap = $-$0.02\%). Training completes in 174 seconds for 100 epochs.
 \end{enumerate}
-All models use identical architecture and hyperparameters as described in Section~\ref{sec:deeponet}.
+
+
+% ──────────────────────────────────────────────────────────────
+\subsection{Supporting Validation: Gulf of Tonkin Reconstruction}
+\label{sec:tonkin}
+% ──────────────────────────────────────────────────────────────
+
+To validate the broader operator learning framework on a real-world domain, we apply the Fourier DeepONet (non-causal, 20 ocean sensors) to reconstruct tidal propagation in \vn{Vịnh Bắc Bộ} (Gulf of Tonkin), Vietnam.
+
+\subsubsection{Setup}
+\begin{itemize}[nosep]
+    \item \textbf{Domain:} $130 \times 110$ grid over real GEBCO bathymetry (0--1{,}500\,m depth).
+    \item \textbf{Solver:} Well-balanced HLL with Hydrostatic Reconstruction.
+    \item \textbf{Forcing:} Synthetic tidal constituents (K1, O1, P1, M2, S2; total $\pm$1.3\,m), consistent with the diurnal-dominant character of the Gulf.
+    \item \textbf{Sensors:} 20 ocean sensors (bath $< 0$\,m) along south and east boundaries.
+    \item \textbf{Dataset:} 20 simulation windows of 48\,h each. Stratified train/test split by tidal regime (neap/medium/spring). Ocean-only sampling (7{,}645 cells).
+\end{itemize}
 
 \subsubsection{Results}
 
 \begin{table}[H]
 \centering
-\caption{Relative L2 error on PDEBench 2D SWE (Radial Dam Break). FNO and U-Net results cited from~\cite{takamoto2022pdebench}.}
-\label{tab:pdebench}
+\caption{Gulf of Tonkin reconstruction: progressive improvement through systematic debugging.}
+\label{tab:tonkin}
 \vspace{4pt}
 \begin{tabular}{llcc}
 \toprule
-\textbf{Model} & \textbf{Branch Input} & \textbf{Rel.\ L2 (\%)} $\downarrow$ & \textbf{Train Time} \\
+\textbf{Configuration} & \textbf{Key change} & \textbf{RMSE (cm)} & \textbf{Rel.\ L2 (\%)} \\
 \midrule
-\multicolumn{4}{l}{\textit{External baselines (cited):}} \\
-FNO-2D & Full field & 5.13 & --- \\
-U-Net & Full field & 12.80 & --- \\
-\midrule
-\multicolumn{4}{l}{\textit{Our baseline:}} \\
-DeepONet (Full-State) & $128 \times 128$ IC & 3.74 & 33.9\,s \\
-\midrule
-\multicolumn{4}{l}{\textit{Proposed -- partial observation:}} \\
-Partial-DeepONet (interior) & $4 \times 4$ interior $\times T$ & 3.95 & 28.4\,s \\
-Boundary-DeepONet (edges) & 16 edge sensors $\times T$ & 5.25 & 27.9\,s \\
+Original setup & Copernicus SLA, land sensors & $\sim$50 & 93.6 \\
++ Physics fixes & Tidal forcing + ocean sensors + mask & 6.45 & 27.1 \\
+\textbf{+ Fourier DeepONet} & \textbf{Fourier PE + latent 256} & \textbf{3.54} & \textbf{14.8} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Analysis}
-
-\textbf{Baseline validation.}
-Our full-state DeepONet achieves Rel.~L2 = 3.74\%, outperforming FNO-2D (5.13\%) and significantly surpassing U-Net (12.80\%) on the same benchmark. This confirms that DeepONet is a competitive foundation, ruling out the possibility that degradation in the partial setting stems from an inherently weak base model.
-
-\textbf{Partial observation: interior sensors.}
-With 16 sensors distributed across the interior on a $4 \times 4$ grid, the Partial-DeepONet achieves 3.95\%---nearly matching the full-state baseline (gap of only 0.21 percentage points). This demonstrates that temporal coherence captured by sparse sensors contains sufficient information for accurate full-field reconstruction, despite a $\sim$90\% reduction in input dimensionality.
-
-\textbf{Boundary-only observation.}
-The most practically significant result is the Boundary-DeepONet configuration. All 16 sensors are placed exclusively on the four edges, with zero coverage of the interior. Despite this severe restriction, the model achieves 5.25\%, comparable to full-state FNO (5.13\%). This demonstrates a clear progression:
-\begin{itemize}[nosep]
-    \item Interior sensors (3.95\%): direct interior information yields near-full-state accuracy.
-    \item Boundary-only sensors (5.25\%): restricting sensors to edges introduces a genuine inverse problem---reconstructing interior dynamics purely from boundary signals---yet remains competitive with state-of-the-art methods that require complete observations.
-\end{itemize}
+The 93.6\% $\to$ 14.8\% improvement was achieved through systematic 4-layer debugging (physics/forcing/sensors/dataset), detailed in the supplementary material. This case study serves as engineering validation that the operator-learning framework generalizes beyond idealized benchmarks to real bathymetric domains.
 
 
 % ──────────────────────────────────────────────────────────────
-\subsection{Case Study: Tidal Propagation in \vn{Vịnh Bắc Bộ} (\vn{Vịnh Bắc Bộ})}
-\label{sec:tonkin}
+\subsection{Planned Experiments}
+\label{sec:planned}
 % ──────────────────────────────────────────────────────────────
 
-To validate practically, we deploy our architecture on a real-world coastal scenario: \vn{Vịnh Bắc Bộ} (\vn{Vịnh Bắc Bộ}), Vietnam. Unlike the idealized flat terrain of PDEBench, this domain presents severe spatial heterogeneity, with water depths ranging from 0\,m near the coast to over 1,500\,m near the Hainan straight, inducing highly non-linear wave-bottom interactions.
+To strengthen the paper for workshop submission, the following experiments are planned:
 
-\subsubsection{Dataset and Virtual Sensors}
-The spatial domain is discretized into a $110 \times 130$ grid covering hundreds of kilometers. The ground-truth data is generated using a finite volume solver employing the HLL approximate Riemann scheme. The simulations cover 168-hour (7-day) windows.
-Crucially, the input required by traditional solvers involves open boundary conditions linking the Gulf to the greater East Sea. We emulate this by defining $K=10$ \emph{virtual sensors} distributed along the Southeast open boundary. Time-series data for these sensors is extracted from the operational Copernicus Marine Environment Monitoring Service (CMEMS) satellite reanalysis. This setup impeccably mirrors the operational oceanography technique of \emph{downscaling}: forcing a high-resolution regional model using sparse boundary nodes from a coarse global model.
+\subsubsection{Additional Benchmark: OceanBench / GLORYS-CMEMS}
+We will evaluate ForecastDeepONet on a real-world reanalysis dataset (OceanBench or GLORYS12 from Copernicus Marine Service), providing a bridge between synthetic PDEBench and operational oceanography. This will test whether the causal forecasting paradigm transfers to multi-scale, turbulent ocean dynamics beyond shallow water physics.
 
-\subsubsection{Results and Performance}
-Trained with pure mean squared error using dynamic anomaly shifting ($\eta(x,y,t) = h(x,y,t) - \bar{h}(x,y)$), the Boundary-DeepONet maps the $10 \times 168$ boundary time-series directly to the full $110 \times 130 \times 168$ grid. The model achieves a Relative $L_2$ error of 21.5\% against the numerical solver across the testing distributions.
-Given the monumental scale of the prediction---reconstructing 14,300 interior points solely from 10 boundary points---this 21.5\% error margin marks a highly promising preservation of global tidal dynamics. The model effortlessly captures critical semi-diurnal harmonic signals (M2, S2) within the Gulf's resonance patterns. Architecturally, once trained, a single 168-hour prediction takes merely 10.2 seconds on an NVIDIA L40S GPU, compared to 6.38 hours for the numerical CPU solver---representing an acceleration factor exceeding $1,000 \times$.
-
-\subsubsection{Qualitative Analysis}
-
-\paragraph{Spatiotemporal snapshots.}
-\Cref{fig:heatmaps} presents side-by-side comparisons of the ground-truth solver output, the DeepONet prediction, and the absolute error at four representative time steps (12\,h, 48\,h, 96\,h, 144\,h). The model faithfully reproduces the large-scale tidal propagation pattern throughout the simulation window. Errors are spatially concentrated near the shallow coastal regions where nonlinear wave--bottom interactions are strongest, while the deep central basin is predicted with high fidelity.
-
-\begin{figure}[ht]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../outputs/viz/heatmap_comparison_t012h.png}
-        \caption{$t = 12$\,h}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../outputs/viz/heatmap_comparison_t048h.png}
-        \caption{$t = 48$\,h}
-    \end{subfigure}\\[6pt]
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../outputs/viz/heatmap_comparison_t096h.png}
-        \caption{$t = 96$\,h}
-    \end{subfigure}\hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../outputs/viz/heatmap_comparison_t144h.png}
-        \caption{$t = 144$\,h}
-    \end{subfigure}
-    \caption{Ground truth (left), DeepONet prediction (center), and absolute error (right) of the water surface anomaly $\eta$ at four time snapshots in \vn{Vịnh Bắc Bộ}.}
-    \label{fig:heatmaps}
-\end{figure}
-
-\paragraph{Time-series at representative locations.}
-\Cref{fig:timeseries} shows the temporal evolution of $\eta$ at four characteristic points: near Ha Long Bay, mid-Gulf, offshore, and central Vietnam coast. The DeepONet closely tracks the tidal oscillation phase and amplitude, confirming that the dominant semi-diurnal (M2) and diurnal (K1, O1) harmonics are well captured.
-
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.85\textwidth]{../outputs/viz/timeseries_4pts.png}
-    \caption{Ground truth vs.\ DeepONet prediction at four representative locations in \vn{Vịnh Bắc Bộ} over a 168-hour window.}
-    \label{fig:timeseries}
-\end{figure}
-
-\paragraph{Spatial error distribution.}
-\Cref{fig:rmse_spatial} displays the time-averaged RMSE at each grid cell. The error is highest in shallow coastal zones (depth $< 50$\,m) where wetting--drying dynamics and steep bathymetric gradients create sharp spatial features that are difficult to reconstruct from sparse boundary observations alone. In contrast, the deep-water region maintains low, uniform error, consistent with the expectation that long-wavelength tidal signals propagate more predictably in deep water.
-
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.6\textwidth]{../outputs/viz/rmse_spatial_map.png}
-    \caption{Spatial distribution of time-averaged RMSE across \vn{Vịnh Bắc Bộ} domain.}
-    \label{fig:rmse_spatial}
-\end{figure}
-
-\paragraph{Spectral analysis.}
-\Cref{fig:spectral} compares the power spectral density (PSD) of the ground truth and DeepONet prediction at four analysis points. Both signals exhibit dominant energy peaks at the expected tidal constituents: M2 ($\sim$12.42\,h), K1 ($\sim$23.93\,h), and O1 ($\sim$25.82\,h), confirming that the network preserves the physically meaningful harmonic content of the tidal signal.
-
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.85\textwidth]{../outputs/spectral/spectral_psd_4pts.png}
-    \caption{Power spectral density comparison between ground truth and DeepONet prediction at four locations. Vertical dashed lines indicate principal tidal constituents.}
-    \label{fig:spectral}
-\end{figure}
-
-\subsubsection{Connecting Benchmark and Case Study}
-
+\subsubsection{Ablation Studies}
 \begin{table}[H]
 \centering
-\caption{Comparison between PDEBench benchmark and \vn{Vịnh Bắc Bộ} case study.}
-\label{tab:comparison}
+\caption{Planned ablation matrix.}
+\label{tab:ablations}
 \vspace{4pt}
-\begin{tabular}{lcc}
+\begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Aspect} & \textbf{PDEBench} & \textbf{\vn{Vịnh Bắc Bộ}} \\
+\textbf{Ablation axis} & \textbf{Configurations} & \textbf{Hypothesis} \\
 \midrule
-Domain & Synthetic, flat bottom & Real bathymetry (0--1\,500\,m) \\
-Grid & $128 \times 128$, uniform & $110 \times 130$, structured \\
-Branch input & 16 sensors $\times$ 101$T$ & 10 sensors $\times$ 168$T$ \\
-Rel.\ L2 & 5.25\% (boundary) & 21.5\% \\
-Complexity & Low (radial dam break) & High (tidal + bathymetry) \\
+Sensor count & $K \in \{4, 8, 16, 32, 64\}$ & Diminishing returns above $K=16$ \\
+Sensor placement & Boundary / interior / random & Boundary is sufficient \\
+Forecast horizon & $T_\mathrm{obs}/T \in \{0.1, 0.2, \ldots, 0.8\}$ & Stable performance (verified) \\
+Observation noise & $\sigma \in \{0, 0.01, 0.05, 0.1\} \cdot \sigma_\eta$ & Robustness characterization \\
+Sensor missingness & 10\%, 30\%, 50\% random dropout & Graceful degradation \\
+\midrule
+Branch architecture & LSTM / GRU / TCN / MLP & LSTM vs.\ alternatives \\
+Fourier frequencies & $L \in \{0, 4, 8, 16\}$ & Optimal $L$ (current: 8) \\
+Latent dimension & $p \in \{64, 128, 256, 512\}$ & Capacity vs.\ overfitting \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The contrast between the 5.25\% PDEBench error and the 21.5\% Tonkin error elucidates the underlying physics. The unforced, flat-bottom nature of PDEBench is an idealized theoretical testbed, confirming that DeepONet cleanly solves the boundary inverse problem when wave information freely radiates. In the Tonkin case, severe bathymetric friction tightly limits conservative propagation, mathematically escalating the difficulty of boundary inversion. The 21.5\% result therefore scales appropriately with the problem's physical conditioning.
 
 % ══════════════════════════════════════════════════════════════
-\section{Discussion and Future Work}
-\label{sec:discussion}
+% DISCUSSION — TODO: Viết sau khi hoàn thành ablation
 % ══════════════════════════════════════════════════════════════
-
-Our results highlight the practical role of neural operators beyond simple forward prediction. The capacity of DeepONet to function as a powerful \emph{data assimilation} engine allows for extreme sensor sparsity without catastrophic performance loss. The specific choice of 10 virtual sensors for \vn{Vịnh Bắc Bộ} matches cutting-edge approaches in operational ocean downscaling. Furthermore, isolating the study to purely data-driven variants (without physics-informed PDE residuals) avoids the mathematically intractable gradients typically encountered when differentiating across abrupt, real-world bathymetric discontinuities.
-
-While the current methodology relies on \emph{simulation-based training} using a Godunov numerical solver as the ground truth, this framework paves the way for direct real-world assimilation. Future work will incorporate real tidal gauge observations from physical coastal stations in Vietnam (e.g., Hòn Dáu, UHSLC station 650) for model validation and fine-tuning. This transfer-learning step will explicitly bridge the simulation-to-reality gap, allowing the DeepONet to correct for unmodeled physical forcings such as wind stress and river discharge.
+% \section{Discussion}
+% TODO
 
 % ══════════════════════════════════════════════════════════════
-\section{Conclusion}
-\label{sec:conclusion}
+% CONCLUSION — TODO
 % ══════════════════════════════════════════════════════════════
-
-This paper explored the application of DeepONet to the 2D Shallow Water Equations under highly restricted, partial-observation conditions. We empirically established that boundary-only sensors are mathematically sufficient for robust spatiotemporal reconstruction, achieving 5.25\% relative error on the PDEBench dataset. Progressing to a real-world case study of \vn{Vịnh Bắc Bộ}, the network successfully interpolated full-field hydrodynamics from merely 10 virtual boundary nodes, cutting 168-hour simulation times from over 6 hours to 10 seconds. These findings underscore the transformative potential of operator learning as a data-efficient tool for real-time geophysical forecasting and digital twin deployments.
+% \section{Conclusion}
+% TODO
 
 
 % ══════════════════════════════════════════════════════════════
-\begin{thebibliography}{10}
+\begin{thebibliography}{12}
 % ══════════════════════════════════════════════════════════════
 
 \bibitem{li2021fno}
@@ -443,24 +414,19 @@ M.~Takamoto, T.~Praditia, R.~Leiteritz, D.~MacKinlay, F.~Alesiani, D.~Pfl\"{u}ge
 in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2022.
 
 \bibitem{rahman2024codano}
-M.~A.~Rahman, R.~J.~George, M.~Elleithy, D.~Leibovici, Z.~Li, B.~Bonev, C.~White, J.~Berner, R.~A.~Yeh, J.~Kossaifi, K.~Azizzadenesheli, and A.~Anandkumar,
+M.~A.~Rahman et al.,
 ``Pretraining Codomain Attention Neural Operators for Solving Multiphysics PDEs,''
-\emph{arXiv preprint arXiv:2403.12553}, 2024.
+\emph{arXiv:2403.12553}, 2024.
 
 \bibitem{liu2026physics}
 X.~Liu and Y.~G.~Lai,
 ``Physics-Informed Deep Operator Learning for Computational Hydraulics Modeling,''
-\emph{arXiv preprint arXiv:2601.08086}, 2026.
+\emph{arXiv:2601.08086}, 2026.
 
-\bibitem{evensen2003enkf}
-G.~Evensen,
-``The Ensemble Kalman Filter: theoretical formulation and practical implementation,''
-\textit{Ocean Dynamics}, vol.~53, pp.~343--367, 2003.
-
-\bibitem{hendrycks2016gelu}
-D.~Hendrycks and K.~Gimpel,
-``Gaussian Error Linear Units (GELUs),''
-\textit{arXiv:1606.08415}, 2016.
+\bibitem{mildenhall2020nerf}
+B.~Mildenhall, P.~P.~Srinivasan, M.~Tancik, J.~T.~Barron, R.~Ramamoorthi, and R.~Ng,
+``NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis,''
+in \emph{Proc.\ ECCV}, 2020.
 
 \bibitem{loshchilov2019adamw}
 I.~Loshchilov and F.~Hutter,
@@ -471,6 +437,11 @@ in \textit{Proc.\ ICLR}, 2019.
 T.~T.~Nguyen and T.~H.~Nguyen,
 ``Application of a Godunov type numerical scheme and a domain decomposition technique to the parallel computation of tidal propagation,''
 \textit{VNU J.\ Sci., Earth Sci.}, vol.~25, pp.~104--115, 2009.
+
+\bibitem{hendrycks2016gelu}
+D.~Hendrycks and K.~Gimpel,
+``Gaussian Error Linear Units (GELUs),''
+\textit{arXiv:1606.08415}, 2016.
 
 \bibitem{xu2025coastal}
 Z.~Xu et al.,
