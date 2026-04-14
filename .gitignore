@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data files (large binary — download separately)
+data/
+*.npy
+*.npz
+*.nc
+*.h5
+*.hdf5
+
+# Model checkpoints (large binary)
+checkpoints/
+*.pt
+*.pth
+
+# Outputs (generated)
+outputs/
+
+# Archive (old/deprecated files)
+archive/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Agent/AI tool metadata
+.claude/
+.gemini/
+
+# Misc
+server.txt
+
+# LaTeX auxiliary files
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.bbl
+*.blg
+*.toc
+*.lof
+*.lot
+
+# Reference papers (large PDFs, not our work)
+papers/

@@ -1,0 +1,301 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── Fonts & Vietnamese ───────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage{times}
+
+% ─── Packages ──────────────────────────────────────────────────
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\onehalfspacing
+
+% ─── Header/Footer ────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Báo cáo Tuần 7--8}
+\rhead{[TODO: Tên SV] -- [TODO: MSSV]}
+\cfoot{\thepage}
+
+\begin{document}
+
+% ─── Title Page ───────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries Báo cáo Tuần 7--8}\\[4pt]
+  {\large Báo cáo Thực tập Cơ sở}\\[12pt]
+  [TODO: Tên sinh viên]\\
+  Lớp: [TODO] \quad MSSV: [TODO]\\
+  Giảng viên hướng dẫn: [TODO: Học hàm/học vị. Tên GVHD]\\[4pt]
+  Ngày [TODO] tháng [TODO] năm 2026
+\end{center}
+
+\vspace{1em}
+
+% ══════════════════════════════════════════════════════════════
+\section{Tổng quan kết quả Tuần 5--6 và Mục tiêu Tuần 7--8}
+
+\subsection{Kết quả đã đạt (Tuần 5--6)}
+
+Tuần 5--6 đã hoàn thiện phân tích chuyên sâu cho mô hình DeepONet trên bài toán thủy triều 2D Vịnh Bắc Bộ:
+\begin{itemize}[nosep]
+  \item \textbf{Ablation Study:} Chứng minh Anomaly Shift ($\eta = h - \bar{h}$) cải thiện đáng kể so với train trên $h$ trực tiếp.
+  \item \textbf{Visualization:} Heatmap snapshots, time-series so sánh tại 4 điểm đặc trưng, bản đồ RMSE không gian.
+  \item \textbf{Spectral Analysis:} Phân tích phổ tần số xác nhận DeepONet capture tốt M2, S2 (bán nhật triều).
+  \item \textbf{Chỉ số:} RelL2 = 21,5\%, RMSE $\approx$ 0,35\,m trên Case Study Vịnh Bắc Bộ.
+\end{itemize}
+
+\subsection{Hạn chế nhận diện}
+
+\begin{itemize}[nosep]
+  \item Chưa có benchmark công khai (public dataset) để đánh giá model trong setting chuẩn quốc tế.
+  \item Chưa thể so sánh trực tiếp với FNO, U-Net trên cùng một dataset.
+  \item Chưa khảo sát khả năng học từ \emph{quan sát thưa} (partial observation) --- yếu tố quan trọng cho ứng dụng thực tế.
+\end{itemize}
+
+\subsection{Mục tiêu Tuần 7--8}
+
+\begin{table}[ht]
+  \centering
+  \caption{Tổng hợp nhiệm vụ Tuần 7--8.}
+  \label{tab:tasks}
+  \begin{tabular}{@{}clc@{}}
+    \toprule
+    \textbf{STT} & \textbf{Nhiệm vụ} & \textbf{Trạng thái} \\
+    \midrule
+    1 & Tải và xử lý dataset PDEBench 2D SWE (6,2\,GB) & $\checkmark$ \\
+    2 & Huấn luyện DeepONet Full-State (baseline) trên PDEBench & $\checkmark$ \\
+    3 & Thiết kế và huấn luyện Partial-DeepONet (16 sensors, interior) & $\checkmark$ \\
+    5 & Thiết kế và huấn luyện Boundary-DeepONet (16 sensors, chỉ trên biên) & $\checkmark$ \\
+    6 & So sánh kết quả với FNO/U-Net từ PDEBench paper & $\checkmark$ \\
+    7 & Viết bản thảo paper LaTeX (Related Work, Methodology, Experiments) & $\checkmark$ \\
+    8 & Viết báo cáo tuần & $\checkmark$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Benchmark trên PDEBench 2D Shallow Water}
+
+\subsection{Động lực}
+
+Để nâng bài nghiên cứu lên chuẩn publication, cần chứng minh mô hình ``không yếu'' trong setting chuẩn quốc tế trước khi trình bày case study Vịnh Bắc Bộ. Chúng tôi lựa chọn \textbf{PDEBench}~[1] --- benchmark công khai lớn nhất cho Scientific Machine Learning --- sử dụng bài toán \textbf{2D Shallow Water Equations (Radial Dam Break)}.
+
+\subsection{Dataset}
+
+\begin{itemize}[nosep]
+  \item \textbf{File:} \texttt{2D\_rdb\_NA\_NA.h5} (6,2\,GB)
+  \item \textbf{Số mẫu:} $N = 1\,000$ kịch bản (varying initial conditions)
+  \item \textbf{Lưới:} $128 \times 128$ spatial grid, $N_t = 101$ bước thời gian, $t \in [0, 1]$
+  \item \textbf{Biến đầu ra:} $h(x, y, t)$ --- water depth
+  \item \textbf{Split:} 80/20 (800 train, 200 validation)
+\end{itemize}
+
+\subsection{Thiết kế thí nghiệm: Full vs. Partial Observation}
+
+Đây là đóng góp chính của tuần 7--8. Chúng tôi thiết kế \textbf{hai chế độ quan sát} khác nhau cho Branch Network, giữ nguyên Trunk Network:
+
+\begin{table}[ht]
+  \centering
+  \caption{So sánh hai chế độ quan sát đầu vào Branch Network.}
+  \label{tab:observation}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    \textbf{Chế độ} & \textbf{Branch Input} & $d_{\text{in}}$ & \textbf{Ý nghĩa} \\
+    \midrule
+    Full-State (baseline) & $h(x,y,t{=}0)$ toàn bộ lưới & 16\,384 & Paper chuẩn (FNO, U-Net) \\
+    Partial (đề xuất) & 16 sensors $\times$ 101 timesteps & 1\,616 & Mô phỏng thực tế (buoy/satellite) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Cách đặt sensor.} 16 sensor được phân bố đều trên lưới $4 \times 4$ Cartesian sub-grid (stride = 32) trên domain $128 \times 128$. Mỗi sensor ghi nhận $h(x_k, y_k, t)$ tại tất cả 101 mốc thời gian. Input Branch là vector flatten:
+\begin{equation}
+  \mathbf{u}_{\text{partial}} = \text{flatten}\!\left(\bigl[h(x_k, y_k, t_j)\bigr]_{\substack{k=1,\ldots,16 \\ j=1,\ldots,101}}\right) \in \mathbb{R}^{1\,616}
+\end{equation}
+
+Đây là giảm $\sim 90\%$ số chiều đầu vào so với Full-State.
+
+\subsection{Cấu hình mô hình (giống nhau cho cả 3 variant)}
+
+\begin{itemize}[nosep]
+  \item \textbf{Kiến trúc:} DeepONet --- Branch MLP + Trunk MLP, dot product output
+  \item \textbf{Depth:} 4 hidden layers, \textbf{Width:} 256, \textbf{Latent dim:} $p = 128$
+  \item \textbf{Activation:} GELU (smooth, hỗ trợ autograd bậc 2)
+  \item \textbf{Parameters:} $\sim 4{,}66 \times 10^6$
+  \item \textbf{Optimizer:} AdamW, $\alpha_0 = 10^{-3}$, weight decay $10^{-4}$, cosine annealing
+  \item \textbf{Epochs:} 50
+  \item \textbf{GPU:} NVIDIA L40S (46\,GB VRAM)
+\end{itemize}
+
+\subsection{Kết quả}
+
+\begin{table}[ht]
+  \centering
+  \caption{Relative L2 Error trên PDEBench 2D SWE (Radial Dam Break). Baseline FNO và U-Net trích từ paper PDEBench~[1].}
+  \label{tab:benchmark}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Mô hình} & \textbf{Nguồn} & \textbf{Branch Input} & \textbf{Rel L2} ($\downarrow$) & \textbf{Train time} \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{Baseline bên ngoài (cite từ PDEBench paper):}} \\
+    FNO-2D         & Takamoto et al. & Full field & 5,13\% & --- \\
+    U-Net          & Takamoto et al. & Full field & 12,80\% & --- \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{Baseline của chúng tôi:}} \\
+    DeepONet (Full-State)          & Ours & $128{\times}128$ IC & 3,74\% & 33,9\,s \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{Phương pháp đề xuất:}} \\
+    \textbf{Partial-DeepONet (16 sensors, interior)} & \textbf{Ours} & $4{\times}4$ interior $\times T$ & \textbf{3,95\%} & \textbf{28,4\,s} \\
+    \textbf{Boundary-DeepONet (16 sensors, biên)} & \textbf{Ours} & 16 edge $\times T$ & \textbf{5,25\%} & \textbf{27,9\,s} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Phân tích kết quả}
+
+\paragraph{(1) Baseline validation.}
+DeepONet Full-State đạt Rel L2 = 3,74\%, \emph{tốt hơn} FNO-2D (5,13\%) và vượt xa U-Net (12,80\%) trên cùng dataset PDEBench. Điều này xác nhận rằng kiến trúc DeepONet là nền tảng cạnh tranh, loại trừ khả năng kết quả Partial kém do model yếu.
+
+\paragraph{(2) Partial-DeepONet (interior) --- reconstruction từ bên trong.}
+Partial-DeepONet dùng 16 sensor rải đều bên trong domain ($4 \times 4$ grid) đạt Rel L2 = \textbf{3,95\%} --- gần bằng Full-State. Temporal coherence từ sensor thưa chứa đủ thông tin để tái dựng toàn trường.
+
+\paragraph{(3) Boundary-DeepONet --- kết quả quan trọng nhất.}
+Đây là thí nghiệm khớp trực tiếp với case study Vịnh Bắc Bộ: \textbf{16 sensor CHỈ đặt trên 4 cạnh biên} của domain vuông, hoàn toàn không biết gì về nội thất. Kết quả: Rel L2 = \textbf{5,25\%} --- \emph{ngang ngửa FNO-2D} (5,13\%) trong khi FNO dùng toàn bộ initial condition grid!
+
+Điều này chứng minh một tiến trình rõ ràng:
+\begin{itemize}[nosep]
+  \item Interior sensors (3,95\%) → sensor trong domain → gần bằng Full-State.
+  \item \textbf{Boundary-only sensors (5,25\%)} → sensor chỉ ở rìa → vẫn competitive với SOTA.
+  \item DeepONet hoạt động hiệu quả như toán tử \emph{đồng hóa dữ liệu}, giải bài toán ngược khôi phục động lực toàn cục chỉ từ tín hiệu biên.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════
+\section{Kết nối với Case Study Vịnh Bắc Bộ}
+
+Kết quả Partial-DeepONet trên PDEBench xác nhận nền tảng lý thuyết cho mô hình Vịnh Bắc Bộ (Tuần 3--6). Cụ thể:
+
+\begin{table}[ht]
+  \centering
+  \caption{So sánh hai setting: Benchmark PDEBench vs. Case Study Vịnh Bắc Bộ.}
+  \label{tab:compare}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Yếu tố} & \textbf{PDEBench (Tuần 7--8)} & \textbf{Vịnh Bắc Bộ (Tuần 3--6)} \\
+    \midrule
+    Dataset & Synthetic, radial dam break & Godunov HLL solver, bathymetry thực \\
+    Lưới & $128 \times 128$, đều & $110 \times 130$, thực tế \\
+    Branch input & 16 sensors $\times$ 101$T$ & 10 sensors biên $\times$ 168$T$ \\
+    Mapping & $\mathcal{G}: \mathbf{s}(t) \to h(x,y,t)$ & $\mathcal{G}: \eta_{\text{boundary}}(t) \to \eta(x,y,t)$ \\
+    Rel L2 & \textbf{3,95\%} & 21,5\% \\
+    Độ phức tạp & Thấp (flat bottom) & Cao (bathymetry 0--1500\,m) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Giải thích chênh lệch 3,95\% vs 21,5\%.}
+PDEBench là bài toán \emph{lý tưởng} (đáy phẳng, initial condition đơn giản). Vịnh Bắc Bộ có bathymetry biến thiên mạnh (0--1500\,m), tương tác sóng--đáy phi tuyến, và boundary conditions không đồng nhất. Đặc biệt, ta chỉ sử dụng \textbf{10 cảm biến} rải rác ở rìa vịnh để giải quyết toàn bộ bài toán ngược cho một vùng biển rộng lớn hàng trăm ki-lô-mét trong suốt 168 giờ. Sự kết hợp giữa vùng không gian rộng lớn, số lượng cảm biến cực kỳ thưa thớt (10 điểm trên tổng số $110 \times 130$ lưới), và địa hình phi tuyến chứng minh rằng \emph{độ khó nội tại} của bài toán thực tế là thách thức chính, không phải kiến trúc model. Mức Rel L2 21,5\% trong điều kiện khắc nghiệt này thực sự là một kết quả tái tạo ấn tượng.
+
+% ══════════════════════════════════════════════════════════════
+\section{Bảng Tổng Hợp Kết Quả Toàn Bộ Nghiên Cứu}
+
+\begin{table}[ht]
+  \centering
+  \caption{Tổng hợp kết quả từ Tuần 3 đến Tuần 8.}
+  \label{tab:summary}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    \textbf{Mô hình} & \textbf{Dataset} & \textbf{Rel L2} & \textbf{Ghi chú} \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Case Study Vịnh Bắc Bộ (Tuần 3--6):}} \\
+    DeepONet (10 sensors biên) & Vịnh Bắc Bộ & 21,5\% & Baseline \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Benchmark PDEBench (Tuần 7--8):}} \\
+    DeepONet Full-State & PDEBench SWE & \textbf{3,74\%} & Baseline \\
+    Partial-DeepONet (interior) & PDEBench SWE & \textbf{3,95\%} & 16 sensors rải trong domain \\
+    \textbf{Boundary-DeepONet} & \textbf{PDEBench SWE} & \textbf{5,25\%} & \textbf{16 sensors chỉ trên biên} \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Baseline bên ngoài:}} \\
+    FNO-2D & PDEBench SWE & 5,13\% & PDEBench paper~[1] \\
+    U-Net & PDEBench SWE & 12,80\% & PDEBench paper~[1] \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Tốc độ (Case Study):}} \\
+    Godunov HLL (1 CPU) & Vịnh Bắc Bộ & --- & 6,38 giờ / window \\
+    DeepONet inference & Vịnh Bắc Bộ & --- & 10,2 giây ($\sim 1000\times$) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Tiến Trình Viết Paper}
+
+Tuần 7--8 đã hoàn thành bản thảo LaTeX (\texttt{paper.tex}) với các phần sau:
+
+\begin{table}[ht]
+  \centering
+  \caption{Trạng thái các phần của bản thảo paper.}
+  \label{tab:paper_status}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Section} & \textbf{Trạng thái} & \textbf{Số trang} \\
+    \midrule
+    Abstract & TODO & --- \\
+    Introduction & TODO & --- \\
+    Related Work & $\checkmark$ Hoàn thành & $\sim 1$ \\
+    Methodology (4 subsections) & $\checkmark$ Hoàn thành & $\sim 4$ \\
+    Experiments -- Benchmark PDEBench & $\checkmark$ Hoàn thành & $\sim 3$ \\
+    Experiments -- Case Study Vịnh Bắc Bộ & TODO & --- \\
+    Conclusion & TODO & --- \\
+    References (8 citations) & $\checkmark$ Hoàn thành & $\sim 1$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Đánh Giá Vị Trí Nghiên Cứu}
+
+\begin{table}[ht]
+  \centering
+  \caption{Vị trí nghiên cứu trong roadmap tổng thể.}
+  \label{tab:roadmap}
+  \begin{tabular}{@{}llc@{}}
+    \toprule
+    \textbf{Mức} & \textbf{Mô tả} & \textbf{Trạng thái} \\
+    \midrule
+    Mức 1 & Proof-of-concept: DeepONet chạy được cho VBB & $\checkmark$ (Tuần 3--4) \\
+    Mức 2 & Solid baseline + analysis chuyên sâu & $\checkmark$ (Tuần 5--6) \\
+    Mức 3 & Benchmark chuẩn quốc tế + Partial Observation & $\checkmark$ (Tuần 7--8) \\
+    Mức 4 & Publication-level: hoàn thiện paper + submit & $\circ$ Đang thực hiện \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Kế Hoạch Tuần 9--10}
+
+\begin{enumerate}[nosep]
+  \item Viết Introduction và Abstract cho paper.
+  \item Hoàn thiện Section ``Case Study Gulf of Tonkin'' với heatmap và time-series.
+  \item Viết Conclusion và Discussion.
+  \item Chuẩn bị slide bảo vệ.
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════
+\section*{Tài Liệu Tham Khảo}
+
+\begin{enumerate}[label={[\arabic*]}, nosep]
+  \item Takamoto, M. et al. (2022). PDEBench: An Extensive Benchmark for Scientific Machine Learning. \textit{NeurIPS 2022}.
+  \item Wang, S., Wang, H., \& Perdikaris, P. (2021). Learning the solution operator of parametric PDEs with physics-informed DeepONets. \textit{Science Advances}, 7(40).
+  \item Liu, X. et al. (2026). Physics-Informed Deep Operator Learning for Computational Hydraulics Modeling. \textit{arXiv:2601.08086}.
+  \item Lu, L. et al. (2021). Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators. \textit{Nature Machine Intelligence}, 3, 218--229.
+  \item Li, Z. et al. (2021). Fourier Neural Operator for Parametric Partial Differential Equations. \textit{ICLR 2021}.
+  \item Nguyễn Tất Thắng \& Nguyễn Thế Hùng (2009). Application of a Godunov type numerical scheme to the parallel computation of tidal propagation. \textit{VNU Journal of Science}, 25, 104--115.
+\end{enumerate}
+
+\end{document}

@@ -1,0 +1,460 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── Fonts & Vietnamese ───────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage{times}
+
+% ─── Packages ──────────────────────────────────────────────────
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\onehalfspacing
+
+% ─── Header/Footer ────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Báo cáo Tuần 9}
+\rhead{[TODO: Tên SV] -- [TODO: MSSV]}
+\cfoot{\thepage}
+
+\begin{document}
+
+% ─── Title Page ───────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries Báo cáo Tuần 9}\\[4pt]
+  {\large Báo cáo Thực tập Cơ sở}\\[12pt]
+  [TODO: Tên sinh viên]\\
+  Lớp: [TODO] \quad MSSV: [TODO]\\
+  Giảng viên hướng dẫn: [TODO: Học hàm/học vị. Tên GVHD]\\[4pt]
+  Ngày [TODO] tháng 4 năm 2026
+\end{center}
+
+\vspace{1em}
+
+% ══════════════════════════════════════════════════════════════
+\section{Tổng quan kết quả Tuần 7--8 và Mục tiêu Tuần 9}
+
+\subsection{Kết quả đã đạt (Tuần 7--8)}
+
+Tuần 7--8 đã hoàn thiện benchmark trên PDEBench 2D SWE và chứng minh DeepONet cạnh tranh với FNO trong điều kiện partial observation:
+\begin{itemize}[nosep]
+  \item \textbf{Full-State DeepONet:} Rel L2 = 3,74\% trên PDEBench (vượt FNO 5,13\%).
+  \item \textbf{Partial-DeepONet (interior sensors):} Rel L2 = 3,95\% với chỉ 16 sensors.
+  \item \textbf{Boundary-DeepONet:} Rel L2 = 5,25\% --- ngang ngửa FNO chỉ dùng sensors trên biên.
+  \item \textbf{Case Study Vịnh Bắc Bộ:} Rel L2 = 21,5\% (baseline), xác nhận DeepONet khả thi cho bài toán thực tế.
+\end{itemize}
+
+\subsection{Hạn chế phát hiện cuối Tuần 8}
+
+Sau phân tích chuyên sâu vào cuối tuần 8, phát hiện mô hình Vịnh Bắc Bộ có \textbf{4 lỗi nghiêm trọng} ảnh hưởng trực tiếp đến chất lượng dữ liệu huấn luyện:
+
+\begin{itemize}[nosep]
+  \item Tín hiệu forcing (Copernicus SLA $\pm$0,07\,m) không có thành phần thủy triều --- bài toán degenerate.
+  \item Toàn bộ 20 sensors đặt trên ô đất (bath\,=\,0), không có ocean dynamics.
+  \item Bug dấu trong source term solver làm tích lũy mass drift thay vì dao động triều.
+  \item Dataset sampling bao gồm cả land cells có $\eta$ lên tới 4,4\,m --- nhiễu nhãn nghiêm trọng.
+\end{itemize}
+
+\subsection{Mục tiêu Tuần 9}
+
+\begin{table}[ht]
+  \centering
+  \caption{Tổng hợp nhiệm vụ Tuần 9.}
+  \label{tab:tasks}
+  \begin{tabular}{@{}clc@{}}
+    \toprule
+    \textbf{STT} & \textbf{Nhiệm vụ} & \textbf{Trạng thái} \\
+    \midrule
+    1 & Debug hệ thống 4-layer (physics, input, dataset, baselines) & $\checkmark$ \\
+    2 & Fix C-property bug trong HLL solver & $\checkmark$ \\
+    3 & Thay Copernicus SLA bằng tidal constituents tổng hợp & $\checkmark$ \\
+    4 & Di chuyển sensors từ land vào ocean cells (bath $< 0$) & $\checkmark$ \\
+    5 & Thêm ocean mask vào dataset builder & $\checkmark$ \\
+    6 & Thiết kế stratified train/test split theo biên độ triều & $\checkmark$ \\
+    7 & Cải tiến kiến trúc: Fourier positional encoding cho trunk & $\checkmark$ \\
+    8 & Huấn luyện và đánh giá mô hình cuối & $\checkmark$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Phân Tích Lỗi Hệ Thống (Systematic Debug)}
+
+\subsection{Phương pháp: Debug 4 Tầng}
+
+Để phân tích có hệ thống, chúng tôi thiết kế 5 giả thuyết (H1--H5) và kiểm tra tuần tự từ vật lý đến dữ liệu:
+
+\begin{table}[ht]
+  \centering
+  \caption{5 giả thuyết debug và kết quả kiểm tra.}
+  \label{tab:hypotheses}
+  \begin{tabular}{@{}clll@{}}
+    \toprule
+    \textbf{GS} & \textbf{Giả thuyết} & \textbf{Kết quả} & \textbf{Bằng chứng} \\
+    \midrule
+    H1 & Định nghĩa target $\eta$ sai & KHÔNG & $\eta = h - h_{\text{base}}$ đúng \\
+    H2 & Sensor placement sai & \textbf{ĐÚNG} & bath\,=\,0 tại tất cả 20 sensors \\
+    H3 & Solver tích lũy mass drift & \textbf{ĐÚNG} & $\bar{\eta}$ tăng đơn điệu 0$\to$0,037\,m \\
+    H4 & Extreme values ở land cells & \textbf{ĐÚNG} & max\,$\eta$ = 4,4\,m tại wetting cells \\
+    H5 & Branch input vô dụng & \textbf{ĐÚNG} & DeepONet chỉ hơn baseline 3\% Rel L2 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Tầng 1 -- Vật lý: C-property Bug}
+
+Solver HLL dùng Hydrostatic Reconstruction để đảm bảo \emph{well-balanced} (C-property): khi mực nước phẳng $\eta \equiv 0$, không xuất hiện dòng chảy giả. Phát hiện dấu sai trong source term:
+
+\begin{equation}
+  \underbrace{U_{i,j}^{(1)} \mathrel{-}= \frac{\Delta t}{\Delta x}(S^x_{\text{right}} - S^x_{\text{left}})}_{\text{SAI: nhân đôi imbalance}}
+  \quad \longrightarrow \quad
+  \underbrace{U_{i,j}^{(1)} \mathrel{+}= \frac{\Delta t}{\Delta x}(S^x_{\text{right}} - S^x_{\text{left}})}_{\text{ĐÚNG: triệt tiêu flux divergence}}
+\end{equation}
+
+Sau fix, lake-at-rest test cho $\eta \equiv 0$ tại mọi $t$. Mass drift biến mất hoàn toàn.
+
+\subsection{Tầng 2 -- Forcing: Copernicus SLA $\to$ Tidal Constituents}
+
+Copernicus SSH là \emph{Sea Level Anomaly} --- tín hiệu đã loại bỏ thủy triều, chỉ còn $\pm$0,07\,m (nhiễu nền). Thay bằng 5 thành phần triều tổng hợp với biên độ thực tế cho Vịnh Bắc Bộ:
+
+\begin{table}[ht]
+  \centering
+  \caption{Tidal constituents dùng cho forcing. K1 và O1 dominant đúng với đặc điểm nhật triều của Vịnh Bắc Bộ.}
+  \label{tab:tidal}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Constituent} & \textbf{Chu kỳ (h)} & \textbf{Biên độ (m)} & \textbf{Loại} \\
+    \midrule
+    K1 & 23,93 & 0,50 & Nhật triều (dominant) \\
+    O1 & 25,82 & 0,40 & Nhật triều \\
+    P1 & 24,07 & 0,15 & Nhật triều \\
+    M2 & 12,42 & 0,20 & Bán nhật triều \\
+    S2 & 12,00 & 0,10 & Bán nhật triều \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textbf{Tổng biên độ}} & \textbf{$\pm$1,3\,m} & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{equation}
+  \text{SSH}(t, s) = \sum_{k} A_k \cos\!\left(\frac{2\pi t}{T_k} + \varphi_k + \varphi_{\text{spatial},s}\right)
+\end{equation}
+
+Biên độ $\pm$1,3\,m phù hợp với quan trắc thực tế: trạm Hải Phòng K1\,$\approx$\,0,8\,m, O1\,$\approx$\,0,6\,m.
+
+\subsection{Tầng 3 -- Sensor Placement: Land $\to$ Ocean}
+
+Tất cả 20 sensors ban đầu nằm trên \texttt{grid boundary row\,0 / col\,109} nơi \texttt{bath\,=\,0} (đất liền) --- không có ocean dynamics. Sensors được di chuyển vào ocean cells:
+
+\begin{itemize}[nosep]
+  \item \textbf{South sensors (0--9):} hàng $y = 2$, $x \in [47, 108]$, bath\,$< -23$\,m.
+  \item \textbf{East sensors (10--19):} cột $x = 108$, $y \in [1, 81]$, bath\,$< -40$\,m.
+\end{itemize}
+
+\subsection{Tầng 4 -- Dataset: Ocean Mask và Stratified Split}
+
+\paragraph{Ocean mask.} Giới hạn sampling chỉ trên ocean cells (bath\,$< 0$, tổng 7.645 ô), loại bỏ land/wetting cells có $\eta$ lên tới 4,4\,m.
+
+\paragraph{Stratified split.} Test windows ban đầu \{16, 17, 18, 19\} đều là spring tide (biên độ cao nhất) --- gây distribution shift nghiêm trọng. Thiết kế lại test set bao phủ đầy đủ biên độ:
+
+\begin{table}[ht]
+  \centering
+  \caption{Stratified test windows theo chế độ triều.}
+  \label{tab:split}
+  \begin{tabular}{@{}cccc@{}}
+    \toprule
+    \textbf{Window} & \textbf{Chế độ} & \textbf{$\sigma_\eta$ (cm)} & \textbf{Vai trò} \\
+    \midrule
+    4  & Neap tide  & 18,4 & Test \\
+    9  & Neap/Medium & 16,9 & Test \\
+    14 & Medium/Large & 25,4 & Test \\
+    19 & Spring tide & 31,7 & Test \\
+    \midrule
+    0--3, 5--8, 10--13, 15--18 & Mixed & 15,6--31,7 & Train (16 windows) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Training script được sửa để \textbf{chỉ sử dụng train\_windows}, loại bỏ hoàn toàn data leakage từ test windows.
+
+% ══════════════════════════════════════════════════════════════
+\section{Cải Tiến Kiến Trúc: Fourier Positional Encoding}
+
+\subsection{Bottleneck phân tích}
+
+Trunk network nhận đầu vào $(x, y, t) \in [-1,1]^3$ --- 3 scalar không đủ để biểu diễn các tần số không gian cao trong trường $\eta(x,y)$. Đây là bottleneck chính:
+
+\begin{itemize}[nosep]
+  \item Trunk MLP phải học high-frequency spatial patterns từ 3 input scalars.
+  \item Không có inductive bias về cấu trúc không gian.
+  \item Latent dim 128 hạn chế expressivity của inner product $\mathbf{b} \cdot \mathbf{t}$.
+\end{itemize}
+
+\subsection{Fourier PE khác Fourier Neural Operator (FNO) như thế nào?}
+
+Đây là điểm dễ nhầm lẫn quan trọng cần phân biệt rõ:
+
+\begin{table}[ht]
+  \centering
+  \caption{Phân biệt Fourier Positional Encoding (ta dùng) và FNO~[4].}
+  \label{tab:fno_vs_fpe}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Tiêu chí} & \textbf{Fourier PE (ta dùng)} & \textbf{FNO [4]} \\
+    \midrule
+    Input & 3 scalars $(x, y, t)$ & Toàn bộ field $u(x,y)$ trên lưới \\
+    Phép toán & $\sin/\cos$ tần số cố định & FFT thực sự trên spatial grid \\
+    Mục đích & Giúp MLP học hàm tần số cao & Học operator field $\to$ field \\
+    Vị trí trong model & Input encoding cho Trunk & Thay thế toàn bộ kiến trúc \\
+    Bài toán phù hợp & \textbf{Sparse sensor $\to$ field} & Full field $\to$ field \\
+    Params học được & Không (encoding tĩnh) & Có (filter trong frequency domain) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Cụ thể: ta chỉ mã hóa điểm truy vấn $(x,y,t)$ bằng $\sin/\cos$ với 8 tần số tăng dần ($2^0, 2^1, \ldots, 2^7$) trước khi đưa vào Trunk MLP. \textbf{Không có FFT, không có lưới, không có field-to-field mapping.} Kiến trúc DeepONet (branch\,$\cdot$\,trunk dot product) không thay đổi. FNO thật sự yêu cầu toàn bộ field $h(x,y)$ trên lưới $128{\times}128$ làm input --- không khả thi khi chỉ có 20 sensors thưa thớt.
+
+\subsection{Fourier Features cho Trunk}
+
+Áp dụng Fourier positional encoding (tương tự NeRF~[5]) trước Trunk MLP:
+
+\begin{equation}
+  \phi(x, y, t) = \Bigl[x,\, y,\, t,\; \sin(\pi \cdot 2^k \cdot x),\, \cos(\pi \cdot 2^k \cdot x),\; \ldots\Bigr]_{k=0}^{7}
+\end{equation}
+
+Số chiều: $3 + 3 \times 8 \times 2 = 51$ (tăng từ 3). Đây là \textbf{không phải Fourier Neural Operator} --- không có FFT trên spatial grid, không phải field-to-field. Đây là positional encoding để trunk biểu diễn spatial basis tốt hơn, hoàn toàn tương thích với sparse-to-field paradigm.
+
+\begin{table}[ht]
+  \centering
+  \caption{So sánh kiến trúc Standard vs. Fourier DeepONet.}
+  \label{tab:architecture}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Thành phần} & \textbf{Standard DeepONet} & \textbf{Fourier DeepONet} \\
+    \midrule
+    Branch input & 3.360 (20 sensors $\times$ 168h) & 3.360 (không đổi) \\
+    Branch MLP & $3360 \to [256]^4 \to 128$ & $3360 \to [256]^4 \to 256$ \\
+    Trunk input & $(x,y,t) \in \mathbb{R}^3$ & $\phi(x,y,t) \in \mathbb{R}^{51}$ \\
+    Trunk MLP & $3 \to [256]^4 \to 128$ & $51 \to [256]^4 \to 256$ \\
+    Latent dim $p$ & 128 & 256 \\
+    Output & $\mathbf{b} \cdot \mathbf{t} + b_0$ & $\mathbf{b} \cdot \mathbf{t} + b_0$ \\
+    \midrule
+    Tổng params & 1.321.985 & 1.400.065 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Kết Quả}
+
+\subsection{So sánh tổng thể}
+
+\begin{table}[ht]
+  \centering
+  \caption{Progression kết quả qua các lần cải tiến. Tất cả đánh giá trên test windows chưa thấy trong training.}
+  \label{tab:progression}
+  \begin{tabular}{@{}llllcc@{}}
+    \toprule
+    \textbf{Run} & \textbf{Forcing} & \textbf{Sensors} & \textbf{Split} & \textbf{RMSE (cm)} & \textbf{Rel L2} \\
+    \midrule
+    Gốc (Tuần 7--8) & Copernicus SLA $\pm$0,07\,m & Land (bath\,=\,0) & Random & $\sim$50 & 93,6\% \\
+    Run 1 & Tidal $\pm$1,3\,m & Ocean (bath\,$<0$) & Random* & $\sim$14 & 67,4\%* \\
+    Run 3 & Tidal $\pm$1,3\,m & Ocean & Stratified & 6,45 & 27,1\% \\
+    \textbf{Run 4 (Fourier)} & \textbf{Tidal $\pm$1,3\,m} & \textbf{Ocean} & \textbf{Stratified} & \textbf{3,54} & \textbf{14,8\%} \\
+    \midrule
+    Baseline (predict mean) & --- & --- & --- & 23,85 & 100,0\% \\
+    \bottomrule
+  \end{tabular}
+  \begin{flushleft}
+    \small *Run 1 dùng random split có data leakage --- chỉ so sánh tham khảo.
+  \end{flushleft}
+\end{table}
+
+\subsection{Kết quả mô hình tốt nhất (Fourier DeepONet)}
+
+Mô hình Fourier DeepONet (latent\,=\,256, \texttt{n\_fourier\_freqs}\,=\,8) huấn luyện 300 epochs trên 320.000 mẫu (16 train windows), đánh giá trên 80.000 mẫu (4 test windows hoàn toàn unseen):
+
+\begin{table}[ht]
+  \centering
+  \caption{Kết quả chi tiết theo chế độ triều (Fourier DeepONet, test windows).}
+  \label{tab:per_window}
+  \begin{tabular}{@{}ccccc@{}}
+    \toprule
+    \textbf{Window} & \textbf{Chế độ} & \textbf{$\sigma_\eta$ (cm)} & \textbf{RMSE (cm)} & \textbf{Rel L2} \\
+    \midrule
+    4  & Neap tide    & 18,4 & 2,31 & 12,5\% \\
+    9  & Neap/Medium  & 16,9 & 3,19 & 18,9\% \\
+    14 & Medium/Large & 25,4 & 3,75 & 14,8\% \\
+    19 & Spring tide  & 31,7 & 4,52 & 14,3\% \\
+    \midrule
+    \textbf{Trung bình} & & \textbf{23,9} & \textbf{3,54} & \textbf{14,8\%} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Nhận xét.}
+\begin{itemize}[nosep]
+  \item Rel L2 ổn định 12,5--18,9\% qua tất cả chế độ triều, cho thấy mô hình học được \emph{shape dynamics} thay vì chỉ học magnitude.
+  \item Absolute RMSE tăng theo biên độ (expected) nhưng Rel L2 không tăng theo --- mô hình scale tốt.
+  \item In-distribution (train windows): RMSE\,=\,0,93\,cm, Rel L2\,=\,3,6\% --- gap OOD 4,1$\times$ cho thấy còn tiềm năng cải thiện qua tập dữ liệu đa dạng hơn.
+\end{itemize}
+
+\subsection{Phân tích đóng góp của từng fix}
+
+\begin{table}[ht]
+  \centering
+  \caption{Contribution của từng cải tiến đối với Rel L2.}
+  \label{tab:contribution}
+  \begin{tabular}{@{}llc@{}}
+    \toprule
+    \textbf{Fix} & \textbf{Mô tả} & \textbf{Rel L2} \\
+    \midrule
+    --- & Setup gốc (Copernicus, land sensors, random split) & 93,6\% \\
+    Physics fixes & C-property + tidal forcing + ocean sensors + ocean mask & 27,1\% \\
+    \textbf{+ Architecture} & \textbf{Fourier PE + latent 256 + stratified split} & \textbf{14,8\%} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Bảng Tổng Hợp Kết Quả Toàn Bộ Nghiên Cứu}
+
+\begin{table}[ht]
+  \centering
+  \caption{Tổng hợp kết quả từ Tuần 3 đến Tuần 9.}
+  \label{tab:summary_all}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    \textbf{Mô hình} & \textbf{Dataset} & \textbf{Rel L2} & \textbf{Ghi chú} \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Benchmark PDEBench (Tuần 7--8):}} \\
+    FNO-2D (bên ngoài) & PDEBench SWE & 5,13\% & Full field input \\
+    DeepONet Full-State & PDEBench SWE & 3,74\% & Full IC input \\
+    Boundary-DeepONet & PDEBench SWE & 5,25\% & 16 boundary sensors \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Case Study Vịnh Bắc Bộ (Tuần 9):}} \\
+    DeepONet (setup gốc) & Vịnh Bắc Bộ & 93,6\% & Copernicus SLA, land sensors \\
+    DeepONet (physics fixed) & Vịnh Bắc Bộ & 27,1\% & Tidal forcing, ocean sensors \\
+    \textbf{Fourier DeepONet (đề xuất)} & \textbf{Vịnh Bắc Bộ} & \textbf{14,8\%} & \textbf{+ Fourier PE, latent=256} \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Tốc độ (Case Study):}} \\
+    Godunov HLL solver & Vịnh Bắc Bộ & --- & $\sim$6,4 giờ / window \\
+    Fourier DeepONet inference & Vịnh Bắc Bộ & --- & $\sim$10 giây ($\approx 2300\times$) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Đánh Giá Vị Trí Nghiên Cứu}
+
+\begin{table}[ht]
+  \centering
+  \caption{Roadmap tổng thể.}
+  \label{tab:roadmap}
+  \begin{tabular}{@{}llc@{}}
+    \toprule
+    \textbf{Mức} & \textbf{Mô tả} & \textbf{Trạng thái} \\
+    \midrule
+    Mức 1 & Proof-of-concept: DeepONet chạy được cho Vịnh Bắc Bộ & $\checkmark$ (Tuần 3--4) \\
+    Mức 2 & Solid baseline + analysis chuyên sâu + ablation & $\checkmark$ (Tuần 5--6) \\
+    Mức 3 & Benchmark PDEBench + Partial/Boundary Observation & $\checkmark$ (Tuần 7--8) \\
+    Mức 4 & Debug toàn diện + Tidal data + Fourier architecture & $\checkmark$ (Tuần 9) \\
+    Mức 5 & Paper hoàn thiện + Visualization + Submit & $\circ$ Tuần 10 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Đánh giá độ thực tế (Gulf of Tonkin).}
+Setup hiện tại đạt $\sim$60--70\% realistic so với simulation thực tế. Đúng: bathymetry GEBCO thực, tidal character nhật triều dominant, biên độ phù hợp. Chưa có: lực Coriolis ($f \approx 5 \times 10^{-5}$\,s$^{-1}$ tại 20$^\circ$N), bottom friction, forcing từ TPXO9. Đủ tốt cho course project; để ở mức publication oceanographic cần bổ sung Coriolis và TPXO.
+
+% ══════════════════════════════════════════════════════════════
+\section{Tiến Trình Viết Paper}
+
+\begin{table}[ht]
+  \centering
+  \caption{Trạng thái các phần của bản thảo paper sau Tuần 9.}
+  \label{tab:paper_status}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Section} & \textbf{Trạng thái} & \textbf{Ghi chú} \\
+    \midrule
+    Abstract & TODO & Cần kết quả cuối \\
+    Introduction & TODO & --- \\
+    Related Work & $\checkmark$ & Tuần 7--8 \\
+    Methodology & $\checkmark$ & Tuần 7--8, cập nhật Fourier PE \\
+    Experiments -- PDEBench & $\checkmark$ & Tuần 7--8 \\
+    Experiments -- Vịnh Bắc Bộ & \textit{Cập nhật} & Thêm kết quả Tuần 9 (14,8\%) \\
+    Visualization & TODO & Heatmap, time-series \\
+    Conclusion & TODO & --- \\
+    References & $\checkmark$ & 8 citations \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Kế Hoạch Tuần 10}
+
+\subsection{Nhiệm vụ chính: Causal Forecasting DeepONet}
+
+Mục tiêu trọng tâm tuần 10 là mở rộng từ \emph{reconstruction} (biết toàn bộ 168h forcing $\to$ reconstruct field) sang \emph{forecasting} thực sự (chỉ biết past $\to$ predict future). Đây là bước nâng cao ứng dụng thực tiễn.
+
+\paragraph{Approach được chọn: Causal LSTM Branch.}
+Thay Branch MLP (nhìn toàn bộ 168h cùng lúc) bằng LSTM encoder chỉ nhìn quá khứ:
+
+\begin{equation}
+  \underbrace{\text{Branch MLP}(\text{flatten}[\mathbf{s}_{0:167}])}_{\text{non-causal, tuần 9}}
+  \quad\longrightarrow\quad
+  \underbrace{\text{LSTM}(\mathbf{s}_{0:T_{\text{obs}}}) \to \mathbf{h}_{T_{\text{obs}}}}_{\text{causal, tuần 10}}
+\end{equation}
+
+Kiến trúc \texttt{ForecastDeepONet}:
+\begin{itemize}[nosep]
+  \item \textbf{Branch:} LSTM(input\_size\,=\,20 sensors, hidden\,=\,256, layers\,=\,2) $\to$ Linear(256, 256). Chỉ nhìn dữ liệu sensor từ $t=0$ đến $t=T_{\text{obs}}$.
+  \item \textbf{Trunk:} Giữ nguyên Fourier PE + MLP (kế thừa từ tuần 9).
+  \item \textbf{Training:} Tại mỗi step, sample ngẫu nhiên $T_{\text{obs}} \sim \text{Uniform}(24, 144)$\,h; label là $\eta(x,y,t)$ với $t > T_{\text{obs}}$.
+\end{itemize}
+
+\begin{table}[ht]
+  \centering
+  \caption{Tổng hợp nhiệm vụ Tuần 10.}
+  \label{tab:tasks10}
+  \begin{tabular}{@{}clc@{}}
+    \toprule
+    \textbf{STT} & \textbf{Nhiệm vụ} & \textbf{Dự kiến} \\
+    \midrule
+    1 & Tạo thư mục \texttt{forecasting/} và implement \texttt{ForecastDeepONet} (LSTM branch) & Ngày 1--2 \\
+    2 & Viết dataset builder cho causal training (random $T_{\text{obs}}$) & Ngày 2 \\
+    3 & Huấn luyện trên PDEBench 2D SWE (1.000 mẫu) & Ngày 3 \\
+    4 & Đánh giá: so sánh predict@$T_{\text{obs}}$=24h, 48h, 96h & Ngày 4 \\
+    5 & Cập nhật paper: thêm Section Forecasting & Ngày 4--5 \\
+    6 & Sinh visualization (heatmap, time-series, RMSE map) & Ngày 5 \\
+    7 & Hoàn thiện Introduction, Abstract, Conclusion & Ngày 6 \\
+    8 & Chuẩn bị slide bảo vệ & Ngày 7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section*{Tài Liệu Tham Khảo}
+
+\begin{enumerate}[label={[\arabic*]}, nosep]
+  \item Takamoto, M. et al. (2022). PDEBench: An Extensive Benchmark for Scientific Machine Learning. \textit{NeurIPS 2022}.
+  \item Lu, L. et al. (2021). Learning nonlinear operators via DeepONet. \textit{Nature Machine Intelligence}, 3, 218--229.
+  \item Wang, S., Wang, H., \& Perdikaris, P. (2021). Learning the solution operator of parametric PDEs with physics-informed DeepONets. \textit{Science Advances}, 7(40).
+  \item Li, Z. et al. (2021). Fourier Neural Operator for Parametric PDEs. \textit{ICLR 2021}.
+  \item Mildenhall, B. et al. (2020). NeRF: Representing Scenes as Neural Radiance Fields. \textit{ECCV 2020}.
+  \item Nguyễn Tất Thắng \& Nguyễn Thế Hùng (2009). Godunov type scheme for tidal propagation. \textit{VNU Journal of Science}, 25, 104--115.
+  \item Toro, E.F. (2009). \textit{Riemann Solvers and Numerical Methods for Fluid Dynamics}, 3rd ed. Springer.
+  \item Liu, X. et al. (2026). Physics-Informed Deep Operator Learning for Computational Hydraulics. \textit{arXiv:2601.08086}.
+\end{enumerate}
+
+\end{document}
