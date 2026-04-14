@@ -1,0 +1,376 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── Fonts & Vietnamese ───────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage{times}
+
+% ─── Packages ──────────────────────────────────────────────────
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\onehalfspacing
+
+% ─── Header/Footer ────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Báo cáo Tuần 10}
+\rhead{[TODO: Tên SV] -- [TODO: MSSV]}
+\cfoot{\thepage}
+
+\begin{document}
+
+% ─── Title Page ───────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries Báo cáo Tuần 10}\\[4pt]
+  {\large Báo cáo Thực tập Cơ sở}\\[12pt]
+  [TODO: Tên sinh viên]\\
+  Lớp: [TODO] \quad MSSV: [TODO]\\
+  Giảng viên hướng dẫn: [TODO: Học hàm/học vị. Tên GVHD]\\[4pt]
+  Ngày [TODO] tháng 4 năm 2026
+\end{center}
+
+\vspace{1em}
+
+% ══════════════════════════════════════════════════════════════
+\section{Tổng quan Tuần 10 và Chuyển hướng Nghiên cứu}
+
+\subsection{Kết quả đạt được Tuần 9 (Tóm tắt)}
+
+Tuần 9 đã hoàn thành toàn bộ pipeline debug và cải tiến kiến trúc cho bài toán \emph{reconstruction} (khôi phục) trường mực nước Vịnh Bắc Bộ:
+
+\begin{itemize}[nosep]
+  \item Fix 4 lỗi hệ thống: C-property solver, tidal forcing, ocean sensors, ocean-only labels.
+  \item Fourier DeepONet: Rel L2 giảm từ 93,6\% $\to$ \textbf{14,8\%} trên test set stratified.
+  \item Inference nhanh gấp $\sim$2.300$\times$ so với Godunov HLL solver.
+\end{itemize}
+
+\subsection{Chuyển hướng chiến lược: Từ Reconstruction sang Causal Forecasting}
+
+Sau khi phân tích lại toàn bộ câu chuyện nghiên cứu, chúng tôi nhận ra rằng kết quả \emph{reconstruction} (non-causal) tuy ấn tượng nhưng \textbf{chưa phản ánh đúng bài toán thực tế}. Trong thực tế, ta không bao giờ có sẵn chuỗi thời gian tương lai tại các trạm---ta chỉ có dữ liệu quá khứ.
+
+\begin{tcolorbox}[colback=blue!5, colframe=blue!50!black, title={Tái định vị bài toán trung tâm}]
+\textbf{Bài toán cũ (reconstruction):} Biết toàn bộ 168h sensor → khôi phục field tại mọi $t$.\\[4pt]
+\textbf{Bài toán mới (causal forecasting):} Chỉ biết sensor từ $t=0$ đến $T_\mathrm{obs}$ → \textbf{dự báo} field tại $t > T_\mathrm{obs}$.
+\end{tcolorbox}
+
+Đây là bước chuyển đổi từ ``chứng minh khái niệm'' sang ``giải bài toán có ý nghĩa ứng dụng thực sự''.
+
+% ══════════════════════════════════════════════════════════════
+\section{Vì sao Sparse Boundary Sensing vẫn là bài toán quan trọng?}
+
+Một câu hỏi tự nhiên: \emph{với vệ tinh altimetry hiện đại (Jason-3, Sentinel-6, SWOT), liệu bài toán ``ít sensor ven bờ'' còn có ý nghĩa?} Câu trả lời dứt khoát là \textbf{có}, với 4 lý do khoa học vững chắc:
+
+\subsection{Vùng ven bờ vẫn là thách thức với altimetry}
+
+Radar altimetry đạt độ chính xác cao ở đại dương mở, nhưng vùng nearshore (cách bờ $<$20\,km) vẫn bị ảnh hưởng nghiêm trọng bởi:
+\begin{itemize}[nosep]
+  \item \textbf{Land contamination:} Tín hiệu radar bị nhiễu bởi phản xạ từ đất liền nằm trong footprint~[1].
+  \item \textbf{Sóng ngắn và động lực ven bờ phức tạp:} Waveform retracking khó hơn nhiều so với open ocean.
+  \item \textbf{Correction errors:} Các mô hình hiệu chỉnh khí quyển (wet troposphere, ionosphere) kém chính xác hơn gần bờ.
+\end{itemize}
+
+Các tổng quan gần đây~[1,2,3] đều nhấn mạnh: \emph{coastal altimetry remains a scientific and technical challenge}.
+
+\subsection{Vệ tinh không cung cấp chuỗi thời gian liên tục}
+
+Điểm then chốt với \emph{forecasting} là temporal sampling. Hầu hết vệ tinh altimetry có chu kỳ quay lại (revisit time) rất dài:
+
+\begin{table}[ht]
+  \centering
+  \caption{So sánh temporal sampling giữa trạm và vệ tinh.}
+  \label{tab:revisit}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Nguồn dữ liệu} & \textbf{Tần suất} & \textbf{Phù hợp forecasting?} \\
+    \midrule
+    Tide gauge cố định & Mỗi 6 phút (liên tục) & \textbf{Có} --- capture mọi tần số \\
+    Jason-3 / Sentinel-6 & $\sim$10 ngày & Không --- miss toàn bộ diurnal/semi-diurnal \\
+    SWOT & $\sim$21 ngày & Không --- dù spatial coverage đẹp \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Vệ tinh \textbf{không thể thay thế} chuỗi đo liên tục tại bờ cho bài toán động lực thời gian nhanh (tidal, surge, seiches).
+
+\subsection{Tide gauges vẫn là nguồn tham chiếu tốt nhất cho sea level ven bờ}
+
+Các tổng quan~[4] vẫn kết luận: \emph{``in-situ tide gauges remains the best approach for long-term coastal sea-level study''}. Altimetry phù hợp hơn ở quy mô regional/global và cần được tích hợp (fusion) với dữ liệu in-situ.
+
+\subsection{Bài toán thực sự: Forecast full field từ cực ít quan trắc cố định}
+
+Bài toán của chúng tôi không chỉ là ``có dữ liệu hay không'' mà là: \textbf{``Có thể forecast toàn bộ trường mực nước từ cực ít trạm quan trắc cố định hay không?''} Điều này vẫn là câu hỏi nghiên cứu mở vì:
+\begin{itemize}[nosep]
+  \item Trạm bờ rẻ hơn và cung cấp dữ liệu liên tục cho vận hành địa phương.
+  \item Nhiều bài toán ven bờ cần latency thấp (cảnh báo sớm sóng triều, storm surge).
+  \item Trong thực tế, giải pháp tốt nhất là \emph{fusion} giữa gauges, models, và satellite.
+\end{itemize}
+
+\begin{tcolorbox}[colback=green!5, colframe=green!50!black, title={Positioning Statement}]
+We study how to forecast coastal/full tidal fields from sparse fixed boundary observations---a setting that remains practically important because coastal in-situ sensors provide continuous local measurements while satellite observations remain intermittent and more challenging in the nearshore zone.
+\end{tcolorbox}
+
+% ══════════════════════════════════════════════════════════════
+\section{ForecastDeepONet: Kiến trúc và Kết quả}
+
+\subsection{Kiến trúc Causal LSTM Branch}
+
+\begin{table}[ht]
+  \centering
+  \caption{So sánh kiến trúc Boundary-DeepONet (tuần 7--8) và ForecastDeepONet (tuần 10).}
+  \label{tab:arch_compare}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Thành phần} & \textbf{Boundary-DeepONet} & \textbf{ForecastDeepONet} \\
+    \midrule
+    Branch encoder & MLP (non-causal) & \textbf{LSTM (causal)} \\
+    Branch input & $K \times N_t$ flattened & $(T_\mathrm{obs}, K)$ sequential \\
+    Temporality & Nhìn toàn bộ $t \in [0,T]$ & Chỉ nhìn $t \leq T_\mathrm{obs}$ \\
+    Trunk encoding & Raw $(x,y,t)$, 3D & Fourier PE, 51D \\
+    Latent dim $p$ & 128 & 256 \\
+    Parameters & $\sim$4,7M & $\sim$1,1M \\
+    \midrule
+    Task & Reconstruction ($\forall t$) & \textbf{Forecasting ($t > T_\mathrm{obs}$)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+LSTM xử lý tuần tự sensor time-series từ $t=0$ đến $T_\mathrm{obs}$, xuất hidden state cuối cùng $\mathbf{h}_{T_\mathrm{obs}}$ làm đại diện cho ``trạng thái biển hiện tại''. Đảm bảo \textbf{strict causality}---không bao giờ nhìn trộm tương lai.
+
+\subsection{Training Strategy: Random Horizon Sampling}
+
+Mỗi training step, $T_\mathrm{obs}$ được sample ngẫu nhiên từ khoảng $[T_\mathrm{min}, T_\mathrm{max}]$. Label chỉ lấy từ các timestep $t > T_\mathrm{obs}$. Chiến lược này buộc model phải hoạt động tốt ở \emph{mọi} độ dài quan sát, thay vì overfit vào một horizon cụ thể.
+
+\subsection{Kết quả trên PDEBench SWE 2D}
+
+\subsubsection{Setup}
+\begin{itemize}[nosep]
+  \item Dataset: PDEBench 2D SWE (Radial Dam Break), 1.000 simulations, grid $128 \times 128$, 101 timesteps.
+  \item Sensors: 16 điểm trên 4 cạnh biên (0,1\% diện tích grid).
+  \item Train/Val: 800/200 simulations.
+  \item Training: 100 epochs, 174 giây, AdamW ($\alpha=10^{-3}$, weight decay $10^{-4}$).
+\end{itemize}
+
+\subsubsection{So sánh với Non-Causal Baselines}
+
+\begin{table}[ht]
+  \centering
+  \caption{Kết quả trên PDEBench 2D SWE. ForecastDeepONet (causal) so với các baseline non-causal.}
+  \label{tab:pdebench_results}
+  \begin{tabular}{@{}llcc@{}}
+    \toprule
+    \textbf{Model} & \textbf{Observation} & \textbf{Causality} & \textbf{Rel L2 (\%)} $\downarrow$ \\
+    \midrule
+    U-Net & Full $128 \times 128$ & Non-causal & 12,80 \\
+    FNO-2D & Full $128 \times 128$ & Non-causal & 5,13 \\
+    DeepONet (full-state) & Complete IC & Non-causal & 3,74 \\
+    Partial-DeepONet & 16 interior sensors & Non-causal & 3,95 \\
+    Boundary-DeepONet & 16 boundary sensors & Non-causal & 5,25 \\
+    \midrule
+    \textbf{ForecastDeepONet} & \textbf{16 boundary sensors} & \textbf{Causal} & \textbf{4,46} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{Phân tích theo Forecast Horizon}
+
+\begin{table}[ht]
+  \centering
+  \caption{ForecastDeepONet: Rel L2 theo số timestep quan sát (observation window).}
+  \label{tab:horizon}
+  \begin{tabular}{@{}cccc@{}}
+    \toprule
+    $T_\mathrm{obs}$ (quan sát) & $T_\mathrm{future}$ (dự báo) & Rel L2 (\%) & Baseline \\
+    \midrule
+    20 timesteps & 81 future & 4,72 & 9,80 \\
+    40 timesteps & 61 future & 4,43 & 9,52 \\
+    60 timesteps & 41 future & 4,33 & 9,82 \\
+    80 timesteps & 21 future & 4,46 & 10,23 \\
+    \midrule
+    \textbf{Trung bình} & & \textbf{4,46} & $\sim$10 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{Kiểm tra Overfitting}
+
+\begin{table}[ht]
+  \centering
+  \caption{Train vs.\ Validation Rel L2 --- không có dấu hiệu overfitting.}
+  \label{tab:overfit}
+  \begin{tabular}{@{}lc@{}}
+    \toprule
+    & Rel L2 (\%) \\
+    \midrule
+    Train & 4,38 \\
+    Validation & 4,36 \\
+    Gap & $-$0,02 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Nhận xét chính}
+
+\begin{enumerate}[nosep]
+  \item \textbf{Counter-intuitive:} Causal ForecastDeepONet (4,46\%) \emph{thắng} non-causal Boundary-DeepONet (5,25\%) dù có ít thông tin hơn. LSTM trích xuất temporal dynamics tốt hơn MLP flatten.
+  \item \textbf{Không forecast degradation:} Sai số ổn định 4,33--4,72\% qua mọi horizon (21--81 future steps).
+  \item \textbf{Không overfit:} Gap train-val = $-$0,02\%. Model 1,1M params vs.\ $\sim$400k samples/epoch.
+  \item \textbf{Cực nhanh:} Converge sau 4 epochs, training chỉ 174 giây.
+\end{enumerate}
+
+
+% ══════════════════════════════════════════════════════════════
+\section{Tái cấu trúc Paper}
+
+\subsection{Logic mới}
+
+Dựa trên kết quả tuần 10, paper được tái cấu trúc hoàn toàn:
+
+\begin{table}[ht]
+  \centering
+  \caption{So sánh logic paper cũ và mới.}
+  \label{tab:paper_logic}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    & \textbf{Logic cũ (tuần 7--9)} & \textbf{Logic mới (tuần 10)} \\
+    \midrule
+    Bài toán trung tâm & Reconstruction & \textbf{Causal Forecasting} \\
+    Đóng góp chính & Boundary-DeepONet & \textbf{ForecastDeepONet (LSTM)} \\
+    Benchmark chính & PDEBench (reconstruct) & \textbf{PDEBench (forecast)} \\
+    Gulf of Tonkin & Main story & \textbf{Supporting validation} \\
+    Novelty claim & Sparse $\to$ field & \textbf{Causal < Non-causal in info, but wins} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Title mới}
+
+\begin{center}
+\textit{``Causal Full-Field Forecasting from Sparse Boundary Sensors via Deep Operator Networks''}
+\end{center}
+
+\subsection{Trạng thái viết Paper}
+
+\begin{table}[ht]
+  \centering
+  \caption{Trạng thái các section trong paper sau tuần 10.}
+  \label{tab:paper_status}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Section} & \textbf{Trạng thái} & \textbf{Ghi chú} \\
+    \midrule
+    Title & $\checkmark$ & Đã đổi sang Causal Forecasting \\
+    Abstract & TODO & Cần kết quả ablation \\
+    Introduction & TODO & Reasoning đã soạn xong (xem \S2) \\
+    Related Work & Cập nhật & Thêm coastal altimetry references \\
+    Methodology & $\checkmark$ & ForecastDeepONet + Fourier PE \\
+    Experiments (PDEBench) & $\checkmark$ & Causal 4,46\% vs.\ non-causal 5,25\% \\
+    Gulf of Tonkin (supporting) & $\checkmark$ & 14,8\% Fourier DeepONet \\
+    Ablation Studies & TODO & Xem kế hoạch \S5 \\
+    Conclusion & TODO & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+% ══════════════════════════════════════════════════════════════
+\section{Kế Hoạch Implement Tiếp Theo}
+
+\subsection{Ablation Studies (Ưu tiên cao nhất)}
+
+Để paper đủ lực cho workshop submission, cần bổ sung ablation trên 3 trục chính:
+
+\begin{table}[ht]
+  \centering
+  \caption{Ma trận ablation dự kiến.}
+  \label{tab:ablation_plan}
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    \textbf{Trục} & \textbf{Configurations} & \textbf{Giả thuyết} & \textbf{Thời gian} \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Trục quan trắc (observation):}} \\
+    Số sensors $K$ & 4, 8, 16, 32, 64 & Diminishing returns $> K=16$ & 1 ngày \\
+    Vị trí sensor & Boundary / interior / random & Boundary is sufficient & 0,5 ngày \\
+    Sensor noise & $\sigma = 0, 0.01, 0.05, 0.1$ & Robustness & 0,5 ngày \\
+    Sensor dropout & 10\%, 30\%, 50\% missing & Graceful degradation & 0,5 ngày \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Trục kiến trúc (architecture):}} \\
+    Branch encoder & LSTM / GRU / TCN / MLP & LSTM tốt nhất & 1 ngày \\
+    Fourier freqs $L$ & 0, 4, 8, 16 & Optimal $L=8$ & 0,5 ngày \\
+    Latent dim $p$ & 64, 128, 256, 512 & Sweet spot at 256 & 0,5 ngày \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{Trục forecast (temporal):}} \\
+    Forecast horizon & $T_\mathrm{obs}/T \in \{0.1, \ldots, 0.8\}$ & Stable (đã verify sơ bộ) & 0,5 ngày \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Benchmark bổ sung: OceanBench / GLORYS-CMEMS}
+
+Để tăng sức thuyết phục, dự kiến thêm 1 benchmark trên dữ liệu đại dương mở:
+\begin{itemize}[nosep]
+  \item \textbf{Ưu tiên 1:} OceanBench (nếu có SSH reanalysis phù hợp).
+  \item \textbf{Ưu tiên 2:} GLORYS12 từ Copernicus Marine Service --- dữ liệu reanalysis toàn cầu, có SSH ở độ phân giải 1/12°.
+  \item \textbf{Mục tiêu:} Chứng minh ForecastDeepONet transfers từ SWE idealized sang ocean dynamics thực.
+\end{itemize}
+
+\subsection{Visualization cho Paper}
+
+\begin{itemize}[nosep]
+  \item Heatmap: GT vs.\ Pred vs.\ Error cho 4 timesteps (PDEBench forecasting).
+  \item Ablation curves: Rel L2 vs.\ $K$ sensors, Rel L2 vs.\ horizon, Rel L2 vs.\ noise $\sigma$.
+  \item Architecture diagram: ForecastDeepONet (LSTM $\to$ dot product $\leftarrow$ Fourier trunk).
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════
+\section{Bảng Tổng Hợp Kết Quả Toàn Bộ Nghiên Cứu}
+
+\begin{table}[ht]
+  \centering
+  \caption{Tổng hợp kết quả từ Tuần 3 đến Tuần 10.}
+  \label{tab:summary_all}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Mô hình} & \textbf{Dataset} & \textbf{Rel L2} & \textbf{Causal?} & \textbf{Tuần} \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{PDEBench SWE 2D (Benchmark):}} \\
+    FNO-2D (external) & PDEBench & 5,13\% & --- & 7--8 \\
+    DeepONet Full-State & PDEBench & 3,74\% & No & 7--8 \\
+    Boundary-DeepONet & PDEBench & 5,25\% & No & 7--8 \\
+    \textbf{ForecastDeepONet} & \textbf{PDEBench} & \textbf{4,46\%} & \textbf{Yes} & \textbf{10} \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{Vịnh Bắc Bộ (Case Study):}} \\
+    DeepONet (setup gốc) & Vịnh Bắc Bộ & 93,6\% & No & 7--8 \\
+    Fourier DeepONet & Vịnh Bắc Bộ & 14,8\% & No & 9 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+% ══════════════════════════════════════════════════════════════
+\section*{Tài Liệu Tham Khảo}
+
+\begin{enumerate}[label={[\arabic*]}, nosep]
+  \item Vignudelli, S. et al. (2025). Advances and challenges in coastal altimetry. \textit{Frontiers in Marine Science}.
+        \url{https://www.frontiersin.org/articles/10.3389/fmars.2025.1592765}
+  \item Cipollini, P. et al. (2025). Coastal altimetry---past, present and future. \textit{Ocean Science}, 21, 133--152.
+        \url{https://os.copernicus.org/articles/21/133/2025/}
+  \item Restano, M. et al. (2025). SAR altimetry for coastal applications. \textit{Int.\ J.\ Applied Earth Obs.}, 106296.
+  \item Cazenave, A. et al. (2021). Sea level along the world's coastlines can be measured by a network of tide gauges. \textit{Ocean \& Coastal Management}, 198, 105374.
+  \item Su, X. et al. (2025). SWOT temporal sampling limitations for inland waters. \textit{AGU Water Resources Research}.
+  \item Lu, L. et al. (2021). Learning nonlinear operators via DeepONet. \textit{Nature Machine Intelligence}, 3, 218--229.
+  \item Li, Z. et al. (2021). Fourier Neural Operator for Parametric PDEs. \textit{ICLR 2021}.
+  \item Takamoto, M. et al. (2022). PDEBench. \textit{NeurIPS 2022}.
+  \item Mildenhall, B. et al. (2020). NeRF. \textit{ECCV 2020}.
+\end{enumerate}
+
+\end{document}
