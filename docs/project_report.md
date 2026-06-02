@@ -314,56 +314,115 @@ Best val RMSE: 0.0614 (normalized)
 
 ## 8. Files và Checkpoints
 
-### Server: `namnx@171.226.10.121`
+### Repository structure (git)
 ```
-/home/namnx/deepOnet_solver/
-├── data/
-│   ├── processed/
-│   │   ├── elev_grid.npy          # Bathymetry (130×110)
-│   │   ├── ssh_tidal_20s.npy      # Tidal SSH (744h, 20 sensors)
-│   │   └── sensor_positions.npz   # Ocean sensor coordinates
-│   ├── simulations_2d_tidal/      # 20 simulation windows
-│   │   └── sim_2d_*.npz           # h:(167,130,110), ssh_input:(168,20)
-│   └── dataset_2d_tidal_strat.npz # Final dataset (400k samples, stratified)
-├── checkpoints/
-│   ├── deeponet_2d_strat_best.pt  # Run 3: latent=128, no Fourier, RelL2=27.1%
-│   └── deeponet_2d_fourier_best.pt # Run 4: latent=256, Fourier, RelL2=14.8%
-├── deeponet/
-│   ├── model.py                   # DeepONet + FourierFeatures
-│   ├── train_deeponet_2d.py       # Training script (window-filtered)
-│   ├── data.py                    # Dataset loaders
-│   └── metrics.py                 # RMSE, MAE
-├── generate_tidal_forcing.py      # Synthetic tidal SSH generation
-├── data_gen_tidal.py              # Run simulations → npz files
-└── dataset_builder_2d.py          # Build training dataset
+ttcs/
+├── solver_2d/                         # 2D Shallow Water Equations solver
+│   ├── swe_hll_real_2d.py             # Well-balanced HLL + Hydrostatic Reconstruction (GoT)
+│   ├── swe_hll_2d.py                  # Base HLL solver (PDEBench-style)
+│   └── __init__.py
+│
+├── deeponet/                          # DeepONet reconstruction (non-causal)
+│   ├── model.py                       # DeepONet + FourierFeatures classes
+│   ├── train_deeponet_2d.py           # Training with stratified window split
+│   ├── data.py                        # NPZ dataset + array dataset loaders
+│   ├── metrics.py                     # RMSE, MAE
+│   └── utils.py                       # Seed, device, checkpoint utilities
+│
+├── forecasting/                       # ForecastDeepONet (causal prediction)
+│   ├── model.py                       # LSTM branch + Fourier trunk DeepONet
+│   ├── train.py                       # Causal training with random T_obs horizons
+│   ├── eval.py                        # Evaluation by forecast horizon
+│   └── dataset.py                     # PDEBench causal dataset builder
+│
+├── scripts/                           # Data generation & evaluation pipelines
+│   ├── data_gen_tidal.py              # Generate tidal simulations (GoT)
+│   ├── dataset_builder_2d.py          # Build training dataset (ocean-masked, stratified)
+│   ├── eval_deeponet.py               # Evaluate Fourier DeepONet on test windows
+│   ├── benchmark_pdebench_swe.py      # PDEBench SWE 2D benchmark (FNO comparison)
+│   ├── benchmark_pdebench_deeponet.py # PDEBench DeepONet variants benchmark
+│   └── process_static_data.py         # GEBCO bathymetry processing
+│
+├── generate_tidal_forcing.py          # Synthetic tidal SSH (K1+O1+P1+M2+S2)
+│
+├── docs/                              # Reports and documentation
+│   ├── project_report.md              # This file — full technical report
+│   ├── debug_results.md               # 4-layer systematic debug findings
+│   ├── report_week9.tex               # Week 9 LaTeX report
+│   ├── report_week7_8.tex             # Week 7-8 LaTeX report (PDEBench)
+│   ├── paper.tex                      # Paper draft
+│   └── data_architecture_analysis.md  # Dataset architecture analysis
+│
+└── papers/                            # Reference papers (gitignored)
 ```
 
-### Local
+### Server checkpoints (`namnx@171.226.10.121:/home/namnx/deepOnet_solver/`)
 ```
-/mnt/DA0054DE0054C365/ttcs/
-├── solver_2d/
-│   └── swe_hll_real_2d.py         # HLL solver (C-property fixed)
-└── docs/
-    ├── debug_results.md            # 4-layer debug findings
-    ├── data_architecture_analysis.md
-    └── project_report.md          # This file
+checkpoints/
+├── deeponet_2d_strat_best.pt      # Run 3: latent=128, no Fourier → RelL2=27.1%
+├── deeponet_2d_fourier_best.pt    # Run 4: latent=256 + Fourier PE → RelL2=14.8%
+└── forecast_best.pt               # ForecastDeepONet: LSTM branch → val RelL2=4.46%
+```
+
+### Server data
+```
+data/
+├── processed/
+│   ├── elev_grid.npy              # GEBCO bathymetry (130×110)
+│   ├── ssh_tidal_20s.npy          # Tidal SSH forcing (744h, 20 sensors)
+│   └── sensor_positions.npz       # Ocean sensor coordinates
+├── simulations_2d_tidal/
+│   └── sim_2d_*.npz               # 20 windows: h:(167,130,110), ssh_input:(168,20)
+├── dataset_2d_tidal_strat.npz     # Final GoT dataset (400k samples, stratified)
+└── pdebench/
+    └── 2D_rdb_NA_NA.h5            # PDEBench SWE 2D (1000 sims, 101×128×128)
+```
+
+### Outputs (trên server, gitignored)
+```
+outputs/
+└── forecasting/                   # ForecastDeepONet training logs
 ```
 
 ---
 
-## 9. Reproduce
+## 9. PDEBench Benchmark (Tuần 7-8)
+
+Trước khi áp dụng vào GoT, chúng tôi benchmark trên PDEBench SWE 2D (Radial Dam Break, 1000 sims, 101 timesteps, 128×128 grid) để validate kiến trúc DeepONet.
+
+### 9.1 Setup
+
+| Variant | Branch input | Sensors | Task |
+|---------|-------------|---------|------|
+| Full-State DeepONet | Toàn bộ initial condition (128×128) | 16,384 | Reconstruction |
+| Boundary DeepONet | 16 boundary sensors × 101 timesteps | 16 (0.1%) | Reconstruction |
+| FNO (reference) | Full field → full field | N/A | Reconstruction |
+
+### 9.2 Results
+
+| Model | Rel L2 | Params | Ghi chú |
+|-------|--------|--------|---------|
+| FNO (PDEBench paper) | 5.13% | ~2M | Full field input |
+| Full-State DeepONet | 3.74% | ~1.4M | Full IC — best possible |
+| Boundary DeepONet (MLP) | 5.25% | ~1.4M | 16 sensors, non-causal |
+| **ForecastDeepONet (LSTM)** | **4.46%** | ~1.5M | **16 sensors, causal** |
+
+**Key insight:** LSTM causal branch (4.46%) beat non-causal MLP branch (5.25%) dù chỉ nhìn quá khứ. Temporal encoding of LSTM > flat concatenation of MLP.
+
+---
+
+## 10. Reproduce
 
 ```bash
+# === Gulf of Tonkin ===
 # 1. Generate tidal SSH + sensor positions
-ssh namnx@171.226.10.121
-cd /home/namnx/deepOnet_solver
-python3 generate_tidal_forcing.py
+python generate_tidal_forcing.py
 
 # 2. Run 20 simulations (HLL solver)
-python3 data_gen_tidal.py --workers 4 --max-sims 20
+python scripts/data_gen_tidal.py --workers 4 --max-sims 20
 
 # 3. Build stratified dataset
-python3 dataset_builder_2d.py \
+python scripts/dataset_builder_2d.py \
   --sims_dir data/simulations_2d_tidal \
   --out data/dataset_2d_tidal_strat.npz \
   --points_per_window 20000 \
@@ -372,25 +431,30 @@ python3 dataset_builder_2d.py \
 
 # 4. Train Fourier DeepONet
 cd deeponet
-python3 train_deeponet_2d.py \
+python train_deeponet_2d.py \
   --data ../data/dataset_2d_tidal_strat.npz \
   --epochs 300 --batch 8192 --lr 1e-3 \
   --latent 256 --n_fourier_freqs 8 \
   --ckpt ../checkpoints/deeponet_2d_fourier_best.pt
 
-# 5. Evaluate
-python3 ../eval_deeponet.py \
-  --data ../data/dataset_2d_tidal_strat.npz \
-  --ckpt ../checkpoints/deeponet_2d_fourier_best.pt
+# 5. Evaluate GoT
+cd ../
+python scripts/eval_deeponet.py \
+  --data data/dataset_2d_tidal_strat.npz \
+  --ckpt checkpoints/deeponet_2d_fourier_best.pt
+
+# === PDEBench Causal Forecasting ===
+# 6. Train ForecastDeepONet
+cd forecasting
+python train.py --epochs 100 --bs 8 --data ../data/pdebench/2D_rdb_NA_NA.h5
+
+# 7. Evaluate by horizon
+python eval.py --ckpt ../checkpoints/forecast_best.pt
 ```
 
 ---
 
----
-
----
-
-## 10. Đột phá Tuần 10: Causal Forecasting (ForecastDeepONet trên PDEBench)
+## 11. Đột phá Tuần 10: Causal Forecasting (ForecastDeepONet trên PDEBench)
 
 Dựa trên nền tảng kỹ thuật rút ra được từ tuần 9, tuần 10 mở rộng nghiên cứu từ bài toán **Reconstruction** (non-causal) sang **Causal Forecasting** thực thụ. Để có benchmark mang tính học thuật cao và chuẩn mực, chúng tôi tiến hành đánh giá mô hình dự báo nhân quả trên **PDEBench SWE 2D Dataset** (thay vì Vịnh Bắc Bộ).
 

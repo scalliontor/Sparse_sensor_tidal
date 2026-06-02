@@ -1,0 +1,125 @@
+digraph OVCNO {
+    // Global settings
+    graph [
+        rankdir=TB,
+        bgcolor="white",
+        fontname="Helvetica",
+        fontsize=11,
+        pad="0.3",
+        nodesep=0.5,
+        ranksep=0.6,
+        dpi=300
+    ];
+    node [
+        fontname="Helvetica",
+        fontsize=11,
+        style="filled,rounded",
+        shape=box,
+        penwidth=1.5,
+        margin="0.15,0.08"
+    ];
+    edge [
+        arrowsize=0.8,
+        penwidth=1.3,
+        color="#555555"
+    ];
+
+    // ── Input ──
+    sensors [
+        label=<<B>Boundary Sensors</B><BR/><I>S</I>(<I>t</I>−<I>k</I> : <I>t</I>)>,
+        fillcolor="#E8F5E9",
+        color="#43A047",
+        shape=box
+    ];
+
+    // ── Tokenization ──
+    tokens [
+        label=<<B>Coordinate Tokens</B><BR/>(<I>x<SUB>i</SUB></I>, <I>y<SUB>i</SUB></I>, <I>s<SUB>i</SUB></I>(τ))>,
+        fillcolor="#E0F7FA",
+        color="#00897B"
+    ];
+
+    // ── Set Encoder ──
+    setenc [
+        label=<<B>Set Encoder</B><BR/>Permutation-invariant aggregation>,
+        fillcolor="#E3F2FD",
+        color="#1E88E5"
+    ];
+
+    // ── Causal LSTM ──
+    lstm [
+        label=<<B>Causal LSTM</B><BR/>Temporal history → <I>h<SUB>T</SUB></I>>,
+        fillcolor="#E3F2FD",
+        color="#1E88E5"
+    ];
+
+    // ── Latent State ──
+    latent [
+        label=<<B>Latent State z</B><BR/>Reparameterized sampling>,
+        fillcolor="#EDE7F6",
+        color="#7E57C2"
+    ];
+
+    // ── Observability ──
+    obs [
+        label=<<B>Observability Field</B><BR/><I>o</I><SUB>ψ</SUB>(<I>x</I>,<I>y</I>,<I>t</I>) ∈ [0,1]>,
+        fillcolor="#EDE7F6",
+        color="#7E57C2"
+    ];
+
+    // ── Query ──
+    query [
+        label=<<B>Query Targets</B><BR/>(<I>x</I>, <I>y</I>, <I>t</I>)>,
+        fillcolor="#FFF3E0",
+        color="#FB8C00",
+        shape=box
+    ];
+
+    // ── Decoder ──
+    decoder [
+        label=<<B>Conditioned Decoder</B><BR/><I>f</I><SUB>θ</SUB>(<B>z</B>, Φ(<I>x,y,t</I>), <I>o</I><SUB>ψ</SUB>)>,
+        fillcolor="#FFF3E0",
+        color="#FB8C00"
+    ];
+
+    // ── Outputs ──
+    mean [
+        label=<<B>Forecast Mean</B><BR/>μ<SUB>θ</SUB>(<I>x</I>,<I>y</I>,<I>t</I>)>,
+        fillcolor="#FFEBEE",
+        color="#E53935",
+        shape=box
+    ];
+    var [
+        label=<<B>Uncertainty Field</B><BR/>σ²<SUB>η</SUB>(<I>x</I>,<I>y</I>,<I>t</I>)>,
+        fillcolor="#FFEBEE",
+        color="#E53935",
+        shape=box
+    ];
+
+    // ── Main flow ──
+    sensors -> tokens;
+    tokens -> setenc;
+    setenc -> lstm;
+
+    // ── Branching from h_T ──
+    lstm -> latent;
+    lstm -> obs;
+
+    // ── Query injection ──
+    query -> obs [style=dashed, color="#FB8C00"];
+    query -> decoder [style=dashed, color="#FB8C00"];
+
+    // ── Into decoder ──
+    latent -> decoder;
+    obs -> decoder;
+
+    // ── Outputs ──
+    decoder -> mean;
+    decoder -> var;
+
+    // ── Layout constraints ──
+    // Force latent and obs side by side
+    { rank=same; latent; obs; query; }
+    // Force outputs side by side
+    { rank=same; mean; var; }
+}
