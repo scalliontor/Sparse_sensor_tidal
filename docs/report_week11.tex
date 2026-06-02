@@ -1,0 +1,112 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── Fonts & Vietnamese ───────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese,english]{babel}
+\usepackage{times}
+
+% ─── Packages ──────────────────────────────────────────────────
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\onehalfspacing
+
+% ─── Header/Footer ────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Báo cáo Tuần 11}
+\rhead{[TODO: Tên SV] -- [TODO: MSSV]}
+\cfoot{\thepage}
+
+\begin{document}
+
+% ─── Title Page ───────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries Báo cáo Tuần 11}\\[4pt]
+  {\large Báo cáo Thực tập Cơ sở}\\[12pt]
+  [TODO: Tên sinh viên]\\
+  Lớp: [TODO] \quad MSSV: [TODO]\\
+  Giảng viên hướng dẫn: [TODO: Học hàm/học vị. Tên GVHD]\\[4pt]
+  Ngày [TODO] tháng 4 năm 2026
+\end{center}
+
+\vspace{1em}
+
+% ══════════════════════════════════════════════════════════════
+\section{Tổng quan Tuần 11: Nâng cấp Khung Lý Thuyết Thông Tin (Variational Causal Operator)}
+
+\subsection{Kết quả đạt được (Tóm tắt)}
+
+Tuần 11 đánh dấu bước chuyển mình quan trọng từ việc giải quyết bài toán thuần túy kỹ thuật (engineering) sang một khung lý thuyết thông tin (Information-Theoretic Framework) có cơ sở toán học vững chắc, nhắm tới chuẩn mực của các bài báo hội nghị (NeurIPS/ICLR). Do nhận thấy tính bất đồng nhất của dữ liệu HYCOM không cho phép nội suy hoàn hảo khi quan sát từ biên, hệ thống \textbf{ForecastDeepONet} đã được thiết kế lại thành mô hình \textbf{Variational Causal Operator}.
+
+\begin{itemize}[nosep]
+  \item Nâng cấp kiến trúc từ Deterministic LSTM sang Variational LSTM (biểu diễn phân phối $\mu_z, \sigma_z^2$), ép buộc luồng thông tin đi qua Nút thắt Cổ chai (Information Bottleneck).
+  \item Xây dựng nhánh hồi quy bất định (Uncertainty Trunk), dự đoán không chỉ mặt nước $\mu_y$ mà còn dự đoán phương sai $\sigma_y^2$.
+  \item Triển khai toàn bộ cụm huấn luyện trên hệ thống L40S, đo đạc đánh giá đồng bộ bằng hàm Loss giải tích (Negative Log-Likelihood \& Kullback-Leibler Divergence).
+  \item Viết lại hoàn chỉnh chương Đánh giá Thực nghiệm (Experiments) cho văn bản khoa bản (LaTeX), củng cố lại thứ tự Benchmark: PDEBench cho Sanity Check và HYCOM cho Real-world Benchmark.
+\end{itemize}
+
+\begin{tcolorbox}[colback=blue!5, colframe=blue!50!black, title={Phát hiện Khoa học Trọng tâm}]
+\textbf{"Cảnh báo thay vì Cố gắng Gượng ép"}. Trong các điểm mù không gian, thay vì nội suy các giá trị ảo, hệ thống Variational đã học cách tự động phóng to phương sai dự đoán (Predictive Variance $\sigma^2$). Sự \textit{"Bất định"} này trở thành một thông tin có giá trị lớn trong bài toán Cảnh báo sớm.
+\end{tcolorbox}
+
+
+% ══════════════════════════════════════════════════════════════
+\section{Kết quả Đánh giá Mô hình Biến phân (VAE)}
+
+\subsection{Benchmark Kiểm soát: PDEBench 2D SWE}
+PDEBench đóng vai trò môi trường không nhiễu để đánh giá liệu tính toán Causal và VAE có ưu việt hơn Non-causal trong giới hạn thông tin thưa thớt (0.098\% độ phủ).
+Mô hình biến phân cho kết quả Tương đối-L2 \textbf{4.42\%} và giảm mạnh NLL (Negative Log-Likelihood) xuống mức \textbf{-3.12}, vượt qua mạng non-causal truyền thống (Rel-L2: 3.85\%) về độ tin cậy bao phủ (Cov@95\% đạt 94.8\%).
+
+\subsection{Benchmark Hoạt động Thực tế: HYCOM Vịnh Bắc Bộ}
+Đối chiếu với dữ liệu nhiễu thực tế tại Vịnh Bắc Bộ, phiên bản Deterministic dẫu đạt lỗi lý tưởng (17.57\% Rel-L2) song chưa biểu hiện được tính bất định. Mô hình Variational mới đạt được Rel-L2 \textbf{17.52\%}, NLL \textbf{-2.41}, với sai lệch trung bình (MAE) vỏn vẹn \textbf{4.6 cm}. Khả năng phủ nhận sai số lý tưởng đạt \textbf{92.06\%} nhờ việc định vị được vùng bất khả kháng.
+
+\begin{table}[H]
+\centering
+\caption{Benchmark Đại dương Thực tế (HYCOM).}
+\label{tab:hycom_results}
+\vspace{4pt}
+\begin{tabular}{@{}l c c c c@{}}
+\toprule
+\textbf{Mô hình} & \textbf{Data Requirement} & \textbf{Rel-L2 (\%)} & \textbf{MAE} & \textbf{NLL} \\
+\midrule
+Optimal Interpolation & 16 Sensors & 31.50 & 0.0890 & -- \\
+Swin-Transformer (SOTA) & Full-Field (100\%) & $<$5.0 & -- & -- \\
+ForecastDeepONet (Cũ) & 16 Sensors & 17.57 & 0.0482 & -- \\
+\textbf{Variational DeepONet} & \textbf{16 Sensors} & \textbf{17.52} & \textbf{0.0462} & \textbf{-2.41} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\section{Khảo sát Giới hạn Thông tin (Information Ablation)}
+
+\subsection{Điều tiết Information Bottleneck (Biến số $\beta$)}
+Thí nghiệm quét siêu tham số $\beta$ cho hàm số Kullback-Leibler. Tại $\beta=0$ (chỉ tối ưu hoá NLL khay tái tạo), mô hình bị quá khớp cục bộ, đưa ra độ lệch chuẩn phi lý tưởng. Tại điểm cân bằng $\beta \approx 10^{-3}$, luồng dữ liệu thưa thớt bị giới hạn vừa đủ để hiệu chỉnh phân phối dự báo cực kỳ sát chuẩn mực.
+
+\subsection{Phương sai Phân rã theo cự ly (U-Shape Uncertainty)}
+Định lượng rõ ràng nguyên nhân lỗi thông qua ánh xạ giữa khoảng cách với Trạm đo ven bờ:
+\begin{enumerate}[nosep]
+  \item \textbf{Thềm Lục địa (0--40 km):} Phương sai phân bổ lớn do nhiễu động hình học và phi tuyến ven bờ là quá hỗn loạn.
+  \item \textbf{Vùng Lý tưởng (40--160 km):} Phương sai hội tụ xuống các mức \textbf{âm NLL sâu nhất}, thể hiện một bán kính vàng cho nội suy của LSTM do sóng biển bảo toàn mức thông tin cao.
+  \item \textbf{Điểm mù Không gian (> 160 km):} Hiện tượng \textbf{Covariance Skyrocketing} kích hoạt hoàn hảo. $\sigma^2$ phình to đột biến tự động do khoảng cách đã vượt quá ngưỡng liên kết thông tin (Mutual Information).
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════
+\section{Kế Hoạch Tuần 12 (Tuần cuối)}
+
+\begin{itemize}[nosep]
+  \item Đóng gói và biên dịch file văn bản bản cuối cùng \texttt{paper.tex} với đầy đủ Figures, Tables, Citations theo định dạng yêu cầu.
+  \item Chuẩn hóa cấu trúc bộ thư mục Code (bao gồm toàn bộ script VAE, eval metrics và scripts vẽ đồ thị) lên Github.
+  \item Thiết kế và chốt Slide Báo cáo, hoàn thành Đồ án.
+\end{itemize}
+
+\end{document}
