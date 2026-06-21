@@ -731,7 +731,36 @@ The real-station-geometry OSSE further indicates that, at budget $K{=}12$, point
     \item \textbf{Mean--variance coupling.} The present decoder conditions both the predictive mean and variance on the learned observability proxy. Preliminary cross-product experiments on HYCOM revealed that product shifts can induce mean-collapse artifacts when the observability signal is coupled to both decoders simultaneously. Although Copernicus diagnostics show no such collapse in this study (spatial std ratio = 1.54), future work should investigate decoupled designs in which observability modulates only the variance pathway.
 \end{enumerate}
 
-\textbf{Future work} will extend this study toward operational evaluation by using multi-month records with independent test periods, adding Level-2 tide-gauge observations with datum alignment, reporting longer autoregressive forecasts, and testing cross-product robustness on independent ocean-analysis products such as HYCOM.
+\subsection*{Future Work}
+\label{sec:future_work}
+
+Several directions follow naturally from the limitations above and would strengthen the OVCNO framework from a controlled validation OSSE into an operational sparse-sensing forecasting system.
+
+\paragraph{(i) Multi-month evaluation with independent test periods.}
+The most immediate methodological gap is the use of a single-month chronological held-out window for both checkpoint selection and reporting (Limitation~4). We plan to extend the Copernicus benchmark to at least one full year of hourly SSH ($\geq$ 8{,}760 timesteps) and adopt a three-way temporal split, for example train Jan--Jul, validate on Aug, and report on Sep--Dec, so that none of the reported numbers can be attributed to selection bias. The same protocol would allow seasonal disaggregation (monsoon vs.\ inter-monsoon) and evaluation under storm or surge events, which exercise heavier-tailed residuals than the current January-only window.
+
+\paragraph{(ii) Post-hoc calibration to recover sharpness.}
+OVCNO improves coverage and likelihood at the cost of wider intervals (Limitation~1). A natural sharpening step is to apply distribution-free conformal calibration to the predictive intervals on a calibration set, then re-evaluate Cov@95\% and Avg.W on the test set. Both split conformal~\cite{angelopoulos2023conformal} and CQR-style approaches~\cite{romano2019cqr} are applicable here, and would allow OVCNO to retain the reliability gains observed in Table~\ref{tab:copernicus_results} while narrowing prediction intervals toward those of VCO.
+
+\paragraph{(iii) Decoupled mean--variance architecture.}
+The HYCOM cross-product investigation revealed that when the observability proxy $o_\psi$ feeds both the mean and variance heads, product shifts (Copernicus anomaly $\to$ HYCOM absolute SSH) can induce mean collapse with an artifactually high error--uncertainty correlation (Limitation~6). Although Copernicus diagnostics show no such collapse (spatial std ratio = 1.54), an architecture in which $o_\psi$ modulates only the variance pathway, while a separate mean decoder receives $z$ and $\phi(x,y,t)$ alone, would remove this failure mode by construction. A two-stage training schedule (first the mean head, then the variance head with the mean frozen) is a complementary mitigation. Both designs should be re-evaluated on HYCOM with the goal of recovering a non-collapsed mean predictor before attempting any cross-product reliability claim.
+
+\paragraph{(iv) Level-2 OSSE with real tide-gauge measurements.}
+Our real-station-geometry OSSE uses authentic station coordinates but model-sampled sensor values (Limitation~3). A Level-2 benchmark would replace these synthetic values with measured water-level time series from GLOSS, IOC Sea Level Station Monitoring Facility, or Copernicus Marine In~Situ TAC, after addressing datum alignment (chart datum vs.\ model reference), tidal harmonic alignment, and missing-data interpolation. To guard against the model simply re-fitting the gridded analysis, a subset of real gauges should be \emph{withheld at training and inference time} and used purely to evaluate predicted SSH at known operational locations.
+
+\paragraph{(v) Cross-product and cross-region robustness.}
+The current study evaluates a single product over a single coastal subdomain. Once decoupled mean--variance training (direction iii) is validated, we plan a controlled cross-product study comparing Copernicus CMEMS, HYCOM GOFS, and at least one operational forecasting system such as NOAA's CBOFS over an overlapping coastal domain (e.g.\ Chesapeake Bay, where dense tide-gauge networks make a parallel Level-2 protocol feasible). The metric of interest is not only RMSE but the stability of $o_\psi$ and Spearman Corr$(|\varepsilon|, \hat\sigma)$ across products, which would demonstrate whether observability-aware uncertainty is a transferable property of the architecture or an artifact of the original training distribution.
+
+\paragraph{(vi) Matched-seed ablations and sensor-placement sweeps.}
+The component ablation in Appendix~\ref{app:ablation} consists of independently trained single runs and is therefore indicative rather than conclusive. A matched-seed ablation, in which each variant is trained from the same 5--7 random seeds with all other settings fixed, would convert the appendix into a defensible quantitative contribution. The same multi-seed protocol should be applied to the sensor-placement experiment (Section~\ref{sec:real_geometry}), where the current training-seed variance dominates layout-induced variance at $K{=}12$; sweeping $K \in \{8, 16, 24, 32\}$ with matched seeds would let us isolate when (and whether) observability geometry becomes the dominant factor.
+
+\paragraph{(vii) Explicit supervision of the observability proxy.}
+The learned $o_\psi$ emerges from end-to-end training and exhibits only moderate correlations with absolute error (Pearson $\approx 0.22$) and predictive variance (Pearson $\approx 0.11$); see Table~\ref{tab:obs_diagnostics}. A natural enhancement is to add a weak supervisory signal derived either from a control-theoretic observability Gramian on a linearized surrogate dynamics, from a physics-informed information-flow proxy, or from cross-validation residuals on withheld sensors. Such supervision would let us test whether explicit geometric priors can sharpen the proxy without sacrificing the data-driven flexibility that allows it to adapt to heterogeneous coastal dynamics.
+
+\paragraph{(viii) Longer autoregressive horizons and multi-variable extension.}
+The current evaluation reports lead times of 1--24~hours with single-step query forecasts. Operational coastal forecasting typically requires multi-day rollouts and joint prediction of SSH, surface currents, and water temperature. Extending OVCNO to autoregressive forecasting (re-encoding predicted states as pseudo-observations) and to a multi-variable decoder is straightforward in principle but raises new questions about uncertainty accumulation, observability decay over rollouts, and whether the observability proxy can meaningfully discriminate between variables that share the same sensor budget.
+
+Taken together, directions~(i)--(iii) address the three most pressing methodological gaps in the present paper and are the highest-priority next steps. Directions~(iv)--(viii) outline a path toward an operational-grade sparse-sensing forecasting system with transferable, interpretable, and physically grounded observability awareness.
 
 \begin{thebibliography}{20}
 % ══════════════════════════════════════════════════════════════
@@ -857,6 +886,17 @@ doi: \href{https://doi.org/10.1038/s42256-023-00746-x}{10.1038/s42256-023-00746-
 C.~Moya, A.~Mollaali, Z.~Zhang, L.~Lu, and G.~Lin,
 ``Conformalized-DeepONet: A Distribution-Free Framework for Uncertainty Quantification in Deep Operator Networks,''
 \emph{arXiv:2402.15406}, 2024.
+
+\bibitem{angelopoulos2023conformal}
+A.~N.~Angelopoulos and S.~Bates,
+``Conformal Prediction: A Gentle Introduction,''
+\textit{Foundations and Trends in Machine Learning}, vol.~16, no.~4, pp.~494--591, 2023.
+doi: \href{https://doi.org/10.1561/2200000101}{10.1561/2200000101}.
+
+\bibitem{romano2019cqr}
+Y.~Romano, E.~Patterson, and E.~J.~Cand\`{e}s,
+``Conformalized Quantile Regression,''
+in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2019.
 
 \end{thebibliography}
 
