@@ -73,5 +73,10 @@ docs/tikz_test.*
 *.lof
 *.lot
 
+# Beamer auxiliary files
+*.nav
+*.snm
+*.vrb
+
 # Reference papers (large PDFs, not our work)
 papers/

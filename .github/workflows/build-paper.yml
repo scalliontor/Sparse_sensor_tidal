@@ -1,0 +1,66 @@
+name: build-paper
+
+# Auto-compile paper.tex (and optionally defense slides) on every push
+# touching the LaTeX sources, and upload the resulting PDFs as workflow
+# artifacts so reviewers/colleagues can download the latest build without
+# installing a LaTeX distribution locally.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**.tex'
+      - 'docs/figures/**'
+      - 'bao_cao_tuan/**.tex'
+      - 'bao_cao_tuan/Logo_PTIT_University.png'
+      - '.github/workflows/build-paper.yml'
+  pull_request:
+    paths:
+      - 'docs/**.tex'
+      - 'docs/figures/**'
+      - 'bao_cao_tuan/**.tex'
+  workflow_dispatch:
+
+jobs:
+  paper:
+    name: Compile paper.tex
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile paper
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: docs
+          root_file: paper.tex
+          latexmk_use_xelatex: false
+          # pdflatex is enough for the paper (English with light Vietnamese accents).
+          args: -pdf -interaction=nonstopmode -halt-on-error
+
+      - name: Upload paper.pdf
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-pdf
+          path: docs/paper.pdf
+          if-no-files-found: error
+
+  slides:
+    name: Compile defense_slides.tex
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile slides (xelatex for Vietnamese)
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: bao_cao_tuan
+          root_file: defense_slides.tex
+          latexmk_use_xelatex: true
+          args: -pdfxe -interaction=nonstopmode -halt-on-error
+
+      - name: Upload defense_slides.pdf
+        uses: actions/upload-artifact@v4
+        with:
+          name: defense-slides-pdf
+          path: bao_cao_tuan/defense_slides.pdf
+          if-no-files-found: warn

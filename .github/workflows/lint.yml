@@ -1,0 +1,53 @@
+name: lint
+
+# Runs pre-commit checks (whitespace, large-file detection, Python lint
+# via ruff, ast parse) on every push and PR. Catches obvious issues
+# without slowing iteration: research code only needs hygiene, not
+# strict static typing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pre-commit:
+    name: pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run hooks on all files
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  python-import-smoke:
+    name: Python AST smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Parse all Python files
+        # Sanity check that every committed .py file is at least
+        # syntactically valid Python — catches typos before they
+        # cause an obscure ImportError on the GPU server.
+        run: |
+          set -euo pipefail
+          find experiment scripts deeponet forecasting solver_2d docs \
+               -name '*.py' -type f 2>/dev/null \
+            | xargs -I {} python -m py_compile {}
+          echo "All Python files parse cleanly."

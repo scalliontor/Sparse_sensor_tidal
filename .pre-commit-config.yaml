@@ -1,0 +1,50 @@
+# Pre-commit hooks for the OVCNO TTCS repository.
+#
+# Install:  pip install pre-commit && pre-commit install
+# Run all:  pre-commit run --all-files
+#
+# Philosophy: lightweight hygiene checks only — this is a research
+# repository, not a production codebase. We want to catch obvious
+# issues (trailing whitespace, accidentally committed large binaries,
+# Python syntax errors) without slowing iteration.
+
+repos:
+  # ─── Generic hygiene ──────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(.*\.(pdf|png|jpg|jpeg|gif|nc|h5|npz|npy|pt|pth|aux|bbl|log|out|fls|fdb_latexmk|toc|synctex\.gz|svg))$
+      - id: end-of-file-fixer
+        exclude: ^(.*\.(pdf|png|jpg|jpeg|gif|nc|h5|npz|npy|pt|pth|aux|bbl|log|out|fls|fdb_latexmk|toc|synctex\.gz|svg))$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-added-large-files
+        args: [--maxkb=5000]  # 5 MB cap — paper.pdf is ~2 MB, slides ~1.5 MB
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # ─── Python: ruff (lint + format) ─────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ─── Python: syntax-level smoke test ──────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-ast
+        # Parses every .py file; catches typos that would crash on import.
+
+  # ─── LaTeX: quick lint with chktex (optional, non-blocking) ──
+  # Uncomment if you install chktex locally:
+  # - repo: https://github.com/dosisod/refurb
+  #   ...

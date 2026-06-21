@@ -1,0 +1,36 @@
+# Project metadata + tool config for the OVCNO TTCS repository.
+# Kept minimal — this is a research repo, not a published package.
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+extend-exclude = [
+    "archive",
+    "data",
+    "outputs",
+    "checkpoints",
+    "papers",
+    "ref_paper",
+    "**/__pycache__",
+]
+
+[tool.ruff.lint]
+# Enable a useful but lenient ruleset for research code.
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports, undefined names — important)
+    "W",   # pycodestyle warnings
+    "I",   # isort (import ordering)
+    "B",   # flake8-bugbear (likely bugs)
+    "UP",  # pyupgrade (modern syntax)
+]
+ignore = [
+    "E501",  # line-too-long  — research code often has long math/array lines
+    "E741",  # ambiguous variable name (i, l, o)  — common in math notation
+    "B008",  # function call in default argument  — common in PyTorch (Adam(lr=...))
+    "B904",  # raise without from  — fine in research code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"experiment/*.py" = ["F401"]   # unused imports tolerated in eval scripts
+"scripts/*.py"    = ["F401"]
