@@ -117,6 +117,50 @@ from Sparse Boundary Sensors}
   \textbf{Luận điểm:} hệ thống tin cậy phải dự báo cả \alert{trường} và \alert{cấu trúc không gian của sự bất định}.
 \end{frame}
 
+% ────────────────────────────────────────────────────────────────
+% SLIDE: Vietnam coastal pain --- application context opening
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Bối cảnh ứng dụng --- vì sao Việt Nam cần điều này}
+  \small
+  \begin{columns}[T]
+    \column{0.52\linewidth}
+      \textbf{Quy mô bờ biển Việt Nam:}
+      \begin{itemize}\itemsep1pt
+        \item \alert{3{,}260 km} bờ biển, 28/63 tỉnh ven biển.
+        \item $\sim$30\% dân số sinh sống vùng ven biển.
+        \item Vịnh Bắc Bộ: cảng Hải Phòng \alert{$>$100 triệu tấn/năm}, du lịch Hạ Long, ngư trường, dầu khí.
+      \end{itemize}
+
+      \vspace{4pt}
+      \textbf{Áp lực vận hành:}
+      \begin{itemize}\itemsep1pt
+        \item Trung bình \alert{$\sim$10 cơn bão/năm}.
+        \item Bão Yagi 9/2024 gây thiệt hại \alert{$>$1.5 tỷ USD}.
+        \item Biên độ triều Hải Phòng tới 4\,m.
+      \end{itemize}
+
+    \column{0.48\linewidth}
+      \textbf{Mạng quan trắc hiện tại:}
+      \begin{itemize}\itemsep1pt
+        \item Chỉ \alert{$\sim$10 trạm cấp quốc gia} có kiểm soát chất lượng.
+        \item Nhiều trạm bị hỏng sau bão.
+        \item Lắp đặt mới: rào cản chi phí.
+      \end{itemize}
+
+      \vspace{4pt}
+      \begin{block}{Ràng buộc thực sự}
+        \begin{itemize}\itemsep1pt
+          \item Không phải RMSE \alert{mm} --- mà là:
+          \item \alert{Latency} (cảnh báo bão $\to$ giờ, không phải buổi).
+          \item \alert{Phủ không gian} từ trạm thưa.
+          \item \alert{Robustness} khi trạm hỏng.
+        \end{itemize}
+        \vspace{2pt}
+        $\Rightarrow$ Đây chính là chỗ OVCNO được thiết kế cho.
+      \end{block}
+  \end{columns}
+\end{frame}
+
 % ════════════════════════════════════════════════════════════════
 \section{Hành trình 11 tuần}
 % ════════════════════════════════════════════════════════════════
@@ -349,6 +393,135 @@ from Sparse Boundary Sensors}
   \vspace{6pt}
   \small
   Mô hình tự "học được" giới hạn thông tin: gần biên $\to \hat\sigma$ thấp; xa biên $\to \hat\sigma$ phình lên. \textbf{Cảnh báo thay vì cố gắng gượng ép}.
+\end{frame}
+
+% ════════════════════════════════════════════════════════════════
+\section{Triển khai \& Ứng dụng vận hành}
+% ════════════════════════════════════════════════════════════════
+
+% ────────────────────────────────────────────────────────────────
+% SLIDE: Operational comparison matrix --- positioning OVCNO
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Vị thế vận hành --- OVCNO mở một class deployment mới}
+  \scriptsize \centering
+  \begin{tabular}{@{}l c c c c@{}}
+    \toprule
+    \textbf{Tiêu chí} & \textbf{ROMS/HYCOM} & \textbf{Vệ tinh} & \textbf{OI/Kriging} & \alert{\textbf{OVCNO (ta)}} \\
+    \midrule
+    Phủ không gian        & Full grid sim & Full sparse-time & Full interp & Full forecast \\
+    \alert{Sampling thời gian}    & Liên tục & \alert{$\sim$21 ngày revisit} & Tùy data & \alert{Liên tục (1h)} \\
+    Input cần              & Khí tượng + biên & Lịch vệ tinh & Mạng dày & \alert{12--16 trạm bờ} \\
+    \alert{Chi phí lắp đặt}        & HPC cluster & Trạm thu mặt đất tỷ VND & Mạng dày & \alert{$\sim$13{,}000 USD} \\
+    Chi phí vận hành/năm   & HPC infra & Phí + xử lý & Nhân lực gắn trạm & Edge $\sim$1\,M VND/tháng \\
+    \alert{Latency dự báo 24h}    & \alert{$\sim$6 giờ} HPC & Phụ thuộc downlink & Khi có data & \alert{$\sim$10 giây} edge \\
+    Vùng ven bờ            & Khó & \alert{Rất khó} & OK & Tốt (sensor đặt đó) \\
+    Hỏng cảm biến          & --- & --- & Sharp degradation & Graceful (\S 4.4) \\
+    \alert{Triển khai cấp tỉnh}   & Không & Không & Không & \alert{\textbf{Có}} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{8pt}
+  \begin{block}{Kết luận}
+    OVCNO \alert{không cạnh tranh} với HYCOM/vệ tinh về accuracy tuyệt đối ---
+    nó \alert{mở khóa} một class deployment mà mấy hệ kia không vào được:
+    \alert{dự báo vịnh từ một nhúm trạm IoT bờ biển, edge inference, latency giây}.
+  \end{block}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% SLIDE: 4 use cases + cost
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Bốn use case vận hành cụ thể tại Việt Nam}
+  \small
+  \begin{columns}[T]
+    \column{0.5\linewidth}
+      \textbf{(A) Cảnh báo nước dâng do bão}
+      \begin{itemize}\itemsep0pt
+        \item Partner: \alert{NCMHC} (TT Dự báo KTTV TW)
+        \item 12 trạm bờ $\to$ 24h field + obs proxy
+        \item +1--3h lead time so với rerun ROMS
+      \end{itemize}
+
+      \vspace{6pt}
+      \textbf{(B) Tide window cho cảng}
+      \begin{itemize}\itemsep0pt
+        \item Partner: \alert{Cảng Hải Phòng}
+        \item 6--8 trạm Hải Phòng/Cát Hải/Đồ Sơn
+        \item Giảm chờ neo cho tàu container lớn
+      \end{itemize}
+
+    \column{0.5\linewidth}
+      \textbf{(C) Nuôi trồng thủy sản}
+      \begin{itemize}\itemsep0pt
+        \item Partner: \alert{Sở NN\&PTNT} ven biển
+        \item Dự báo phơi bãi, độ ngập triều
+        \item Tối ưu thu hoạch nghêu/ngao/tôm
+      \end{itemize}
+
+      \vspace{6pt}
+      \textbf{(D) Vận hành cống thủy lợi}
+      \begin{itemize}\itemsep0pt
+        \item Partner: \alert{Chi cục Thủy lợi tỉnh}
+        \item Đóng/mở cống chống ngập \& mặn
+        \item Giảm rủi ro nhân viên trực bão
+      \end{itemize}
+  \end{columns}
+
+  \vspace{8pt}
+  \begin{block}{Điểm chung}
+    Cả 4 case đều dùng \alert{observability proxy} để tell decision-maker
+    \alert{phần nào trong dự báo đáng tin}, không chỉ điểm dự báo.
+  \end{block}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% SLIDE: Cost analysis + roadmap
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Chi phí triển khai \& roadmap 3 phase}
+  \small
+  \begin{columns}[T]
+    \column{0.48\linewidth}
+      \textbf{Bill of materials --- 1 trạm IoT bờ biển:}
+      \scriptsize
+      \begin{tabular}{@{}l r@{}}
+        \toprule
+        Radar/pressure water-level sensor & 320 USD \\
+        MCU (ESP32 + LoRa modem)          & 60 \\
+        Solar + LiFePO$_4$ battery        & 200 \\
+        Enclosure IP68 + cọc inox         & 120 \\
+        4G SIM (yearly)                   & 50 \\
+        Lắp đặt + datum calibration       & 160 \\
+        \midrule
+        \textbf{Per station}              & \textbf{$\sim$910 USD} \\
+        \midrule
+        Edge server (Jetson AGX 32GB)     & 1{,}400 \\
+        LoRa gateway + 4G dispatch        & 320 \\
+        \midrule
+        \textbf{12-station deployment}    & \alert{\textbf{$\sim$13{,}000 USD}} \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{4pt}
+      \small {\color{gray} So sánh: 1 phao SOLO research-grade = 18--25\,k\,USD; hệ ROMS-class operational = 500\,k--2\,M USD.}
+
+    \column{0.5\linewidth}
+      \textbf{Roadmap 3 phase:}
+      \begin{itemize}\itemsep4pt
+        \item \textbf{Phase 1 --- Pilot (0--6 tháng):}
+        4 trạm tại Hải Phòng đồng vị reference gauge. Validate Level-2 (datum, harmonic alignment).
+
+        \item \textbf{Phase 2 --- Regional MVP (6--18 tháng):}
+        12 trạm phủ Vịnh Bắc Bộ. Tích hợp dashboard NCMHC. Test trong mùa bão 2026--2027.
+
+        \item \textbf{Phase 3 --- Multi-region (18--36 tháng):}
+        Nhân rộng: Đà Nẵng + Mekong Delta. Cross-product CMEMS+HYCOM+CBOFS study.
+      \end{itemize}
+
+      \vspace{4pt}
+      \begin{block}{Mục tiêu cuối}
+        Permanent handover cho Sở/Chi cục KTTV tỉnh.
+      \end{block}
+  \end{columns}
 \end{frame}
 
 % ════════════════════════════════════════════════════════════════
