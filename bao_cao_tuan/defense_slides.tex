@@ -187,6 +187,350 @@ from Sparse Boundary Sensors}
   \end{block}
 \end{frame}
 
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 1/7 — Tuần 1-4: 1D PoC
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 1--4: Proof of Concept trên 1D}
+  \small
+  \begin{columns}[T]
+    \column{0.55\linewidth}
+      \textbf{Mục tiêu:} validate ý tưởng DeepONet trước khi scale 2D.
+
+      \vspace{6pt}
+      \textbf{Đã làm:}
+      \begin{itemize}\itemsep1pt
+        \item 1D HLL Godunov solver: dam break, standing wave, tidal forcing.
+        \item Boundary conditions reflective + transmissive.
+        \item 1D DeepONet: branch (1 boundary sensor) + trunk $(x, t)$.
+        \item Ablation: target $\eta$ (anomaly) vs $h$ (total depth).
+      \end{itemize}
+
+      \vspace{6pt}
+      \textbf{Kết quả:}
+      \begin{itemize}\itemsep1pt
+        \item Model tái tạo wave propagation từ \alert{1 sensor biên duy nhất}.
+        \item $\eta$ train tốt hơn $h$ \alert{rõ rệt} (loại baseline tĩnh).
+      \end{itemize}
+
+    \column{0.45\linewidth}
+      \centering
+      \begin{tikzpicture}[
+        scale=0.85, transform shape,
+        node distance=0.4cm,
+        box/.style={draw=ptitblue, rounded corners=2pt, thick, font=\scriptsize, align=center, minimum height=0.55cm, inner sep=3pt},
+        arr/.style={-{Stealth[length=1.5mm]}, thick}
+      ]
+        \node[box, fill=green!12, text width=2.5cm] (sensor) {1 boundary sensor\\$s(t),\; t=0..T$};
+        \node[box, fill=blue!12, below=of sensor, text width=2.5cm] (branch) {Branch MLP\\$\to b \in \mathbb{R}^{128}$};
+        \node[box, fill=orange!12, right=1.0cm of branch, text width=2.0cm] (trunk) {Trunk MLP\\$(x,t)\to t$};
+        \node[box, fill=red!12, below=of branch, text width=2.5cm] (out) {$\eta(x,t) = \langle b, t \rangle$};
+        \draw[arr] (sensor) -- (branch);
+        \draw[arr] (branch) -- (out);
+        \draw[arr] (trunk) |- (out);
+      \end{tikzpicture}
+
+      \vspace{6pt}
+      \textbf{Lesson learned:}\\
+      $\eta$ thay vì $h$ $\to$ áp dụng cho 2D sau này.
+  \end{columns}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 2/7 — Tuần 5-6: 2D + Vịnh Bắc Bộ
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 5--6: Mở rộng 2D + Vịnh Bắc Bộ thật \textcolor{ptitred}{\small (kết quả gãy)}}
+  \small
+  \begin{columns}[T]
+    \column{0.5\linewidth}
+      \textbf{Đã làm:}
+      \begin{itemize}\itemsep1pt
+        \item 2D well-balanced HLL solver + Hydrostatic Reconstruction.
+        \item GEBCO bathymetry Vịnh Bắc Bộ ($130 \times 110$ grid, 5\,km).
+        \item 20 sensor biên + 2D DeepONet branch (168h × 20 sensors).
+        \item Forcing đầu tiên: \alert{Copernicus SLA}.
+      \end{itemize}
+
+      \vspace{8pt}
+      \textbf{Kết quả ban đầu:}
+      \begin{center}
+        \begin{tabular}{l c}
+          \toprule
+          RMSE & $\sim$50\,cm \\
+          \alert{Rel-L2} & \alert{\textbf{93.6\%}} \\
+          \bottomrule
+        \end{tabular}
+      \end{center}
+
+      \vspace{4pt}
+      $\Rightarrow$ Gần như chỉ \alert{predict mean}. Có gì sai?
+
+    \column{0.5\linewidth}
+      \centering
+      \includegraphics[height=0.5\textheight,keepaspectratio]{../docs/figures/station_map.png}
+
+      \vspace{4pt}
+      {\scriptsize Lưới Vịnh Bắc Bộ + vị trí sensor (sau khi sửa).}
+
+      \vspace{6pt}
+      \begin{alertblock}{Ba lỗi ẩn (chưa biết lúc đó)}
+        \begin{itemize}\itemsep0pt
+          \scriptsize
+          \item Copernicus SLA \alert{đã loại triều} ($\pm$0.07\,m).
+          \item Sensor trên \alert{land cell} (bath=0).
+          \item Source term sign bug \alert{vi phạm C-property}.
+        \end{itemize}
+      \end{alertblock}
+  \end{columns}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 3/7 — Tuần 7-8: PDEBench validates kiến trúc
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 7--8: PDEBench validates kiến trúc \textcolor{ptitblue}{\small (architecture KHÔNG có lỗi)}}
+  \small
+  \begin{columns}[T]
+    \column{0.55\linewidth}
+      \textbf{Logic:} DeepONet gãy ở GoT nhưng \alert{benchmark sạch} chạy được $\to$ vấn đề data/physics.
+
+      \vspace{4pt}
+      \textbf{Setup:} PDEBench 2D Radial Dam Break, 1000 sims, $128 \times 128$, 101 steps.
+
+      \vspace{4pt}
+      \begin{center}
+        \scriptsize
+        \begin{tabular}{l c}
+          \toprule
+          Model (input regime) & Rel-L2 \\
+          \midrule
+          Full-State DeepONet (full IC) & 3.74\% \\
+          Boundary DeepONet (16 sensors) & \alert{5.25\%} \\
+          FNO reference (full field) & 5.13\% \\
+          \bottomrule
+        \end{tabular}
+      \end{center}
+
+      \vspace{2pt}
+      $\Rightarrow$ \alert{16 sensors $=$ 0.1\% diện tích} beat FNO full-field.
+
+    \column{0.45\linewidth}
+      \centering
+      \includegraphics[height=0.42\textheight,keepaspectratio]{../docs/figures/sensor_ablation.png}
+
+      \vspace{4pt}
+      \begin{block}{Kết luận then chốt}
+        \alert{93.6\% trên GoT KHÔNG phải do kiến trúc.}
+        $\to$ Setup cho Tuần 9 Great Debug.
+      \end{block}
+  \end{columns}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 4/7 — Tuần 9 Part 1: 4-layer debug
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 9 (1/2): The Great Debug --- 4-layer hypothesis test}
+  \scriptsize
+  \begin{center}
+    \begin{tikzpicture}[
+      scale=0.85, transform shape,
+      box/.style={draw=ptitblue, rounded corners=3pt, thick, align=center, minimum height=0.7cm, inner sep=4pt, font=\scriptsize},
+      arr/.style={-{Stealth[length=2mm]}, thick, draw=ptitblue}
+    ]
+      \node[box, fill=ptitblue!15, text width=2.6cm] (h1) {\textbf{H1 Target}\\$\eta$ definition?};
+      \node[box, fill=ptitblue!15, right=0.4cm of h1, text width=2.6cm] (h2) {\textbf{H2 Boundary}\\Sensor preprocessing?};
+      \node[box, fill=ptitblue!15, right=0.4cm of h2, text width=2.6cm] (h3) {\textbf{H3 Solver}\\Mass drift?};
+      \node[box, fill=ptitblue!15, right=0.4cm of h3, text width=2.6cm] (h4) {\textbf{H4+5 Branch}\\Useless input?};
+
+      \node[below=0.4cm of h1, font=\scriptsize, text=gray] {OK \checkmark};
+      \node[below=0.4cm of h2, font=\scriptsize, text=ptitred] {\alert{Sensor on land}};
+      \node[below=0.4cm of h3, font=\scriptsize, text=ptitred] {\alert{C-prop violated}};
+      \node[below=0.4cm of h4, font=\scriptsize, text=ptitred] {\alert{$\approx$ baseline}};
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{2pt}
+  \textbf{6 fix systematic:}
+  \begin{center}
+    \scriptsize
+    \begin{tabular}{@{}l l c@{}}
+      \toprule
+      \textbf{Layer} & \textbf{Fix} & \textbf{Sau fix} \\
+      \midrule
+      Physics & Sign bug C-property: \texttt{-=} $\to$ \texttt{+=} (lake-at-rest preserved) & --- \\
+      Forcing & Copernicus SLA ($\pm$0.07m) $\to$ \alert{synthetic K1+O1+P1+M2+S2} ($\pm$1.3m) & --- \\
+      Sensor & 20 sensors land cell $\to$ \alert{ocean cell} (bath $<$ −23m / −40m) & --- \\
+      BC & Hard Dirichlet (shock blow-up) $\to$ \alert{relaxation nudging} $\alpha{=}0.05$ & --- \\
+      Dataset & Random split (leakage) $\to$ \alert{ocean mask + stratified by tidal regime} & --- \\
+      \midrule
+      \multicolumn{2}{l}{\textit{Cumulative after 6 fixes:}} & \alert{\textbf{Rel-L2 27.1\%}} \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \vspace{4pt}
+  \begin{block}{}
+    93.6\% $\to$ 27.1\% chỉ bằng \textbf{fix physics + data}. Tiếp tục: kiến trúc fix (next slide).
+  \end{block}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 5/7 — Tuần 9 Part 2: Fourier PE
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 9 (2/2): Fourier Positional Encoding --- architecture fix}
+  \small
+  \begin{columns}[T]
+    \column{0.55\linewidth}
+      \textbf{Vấn đề còn lại:} sau 6 fix, Rel-L2 = 27.1\% --- limit do \alert{spectral bias} của MLP.
+      MLP với raw $(x, y, t)$ không học được pattern tần số cao.
+
+      \vspace{4pt}
+      \textbf{Fix: Fourier PE (NeRF-style):}
+      $\phi(x) = [x, \sin(2^k\pi x), \cos(2^k\pi x)]_{k=0..7}$
+      \begin{itemize}\itemsep0pt
+        \item Trunk: $3D \to \alert{51D}$; latent $128 \to 256$; +6\% params.
+      \end{itemize}
+
+      \vspace{4pt}
+      \textbf{Kết quả cuối Tuần 9:}
+      \begin{center}
+        \scriptsize
+        \begin{tabular}{l c c}
+          \toprule
+          & RMSE & Rel-L2 \\
+          \midrule
+          Baseline (Week 6) & $\sim$50\,cm & \alert{93.6\%} \\
+          + 6 physics/data fix & 6.45\,cm & 27.1\% \\
+          + Fourier PE + latent 256 & \alert{\textbf{3.54\,cm}} & \alert{\textbf{14.8\%}} \\
+          \bottomrule
+        \end{tabular}
+      \end{center}
+
+    \column{0.45\linewidth}
+      \centering
+      \begin{tikzpicture}[
+        scale=0.9, transform shape,
+        box/.style={draw=ptitblue, rounded corners=2pt, thick, font=\scriptsize, align=center, minimum height=0.55cm, inner sep=3pt},
+        arr/.style={-{Stealth[length=1.5mm]}, thick}
+      ]
+        \node[box, fill=green!12, text width=2.6cm] (xy) {$(x, y, t)$\\3 scalars};
+        \node[box, fill=blue!12, right=of xy, text width=2.6cm] (pe) {Fourier PE\\$\sin, \cos$ @ 8 freqs};
+        \node[box, fill=orange!12, below=of pe, text width=2.6cm] (lift) {51-dim feature};
+        \node[box, fill=red!12, below=of lift, text width=2.6cm] (mlp) {MLP $[256 \times 4]$};
+        \draw[arr] (xy) -- (pe);
+        \draw[arr] (pe) -- (lift);
+        \draw[arr] (lift) -- (mlp);
+      \end{tikzpicture}
+
+      \vspace{12pt}
+      \begin{block}{Lesson}
+        Spectral bias là \alert{thật}. Fourier PE rẻ ($+6\%$ params) nhưng đem lại \alert{$\sim$12\,pp} cải thiện Rel-L2.
+      \end{block}
+  \end{columns}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 6/7 — Tuần 10 Part 1: Causal LSTM
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 10 (1/2): Pivot --- Reconstruction $\to$ Causal Forecasting}
+  \small
+  \begin{columns}[T]
+    \column{0.5\linewidth}
+      \textbf{Vấn đề Tuần 9:} branch nhận \alert{toàn bộ} 168h $\to$ không causal. Deployment không biết tương lai.
+
+      \vspace{4pt}
+      \textbf{ForecastDeepONet (causal):}
+      \begin{itemize}\itemsep0pt
+        \item Branch = \alert{LSTM} chỉ thấy $[0, T_{\mathrm{obs}}]$.
+        \item Trunk = Fourier PE + MLP cho $(x, y, t_{\mathrm{future}})$.
+        \item Trick: random $T_{\mathrm{obs}} \in [10, 80]$ training $\to$ \alert{robust mọi horizon}.
+      \end{itemize}
+
+      \vspace{4pt}
+      \textbf{Kết quả PDEBench 2D SWE:}
+      \begin{center}
+        \scriptsize
+        \begin{tabular}{l c}
+          \toprule
+          Architecture & Rel-L2 \\
+          \midrule
+          MLP branch (non-causal, T 7-8) & 5.25\% \\
+          \alert{LSTM branch (causal)} & \alert{\textbf{4.46\%}} \\
+          \bottomrule
+        \end{tabular}
+      \end{center}
+
+    \column{0.5\linewidth}
+      \centering
+      \begin{tikzpicture}[
+        scale=0.85, transform shape,
+        box/.style={draw=ptitblue, rounded corners=2pt, thick, font=\scriptsize, align=center, minimum height=0.55cm, inner sep=3pt},
+        arr/.style={-{Stealth[length=1.5mm]}, thick}
+      ]
+        \node[box, fill=green!12, text width=3.2cm] (s) {Sensor history\\$\mathcal{S}[0:T_{\mathrm{obs}}]$ (causal)};
+        \node[box, fill=blue!18, below=of s, text width=3.2cm] (lstm) {\textbf{Causal LSTM}\\16 sensors $\to$ 256-dim};
+        \node[box, fill=blue!12, below=of lstm, text width=3.2cm] (b) {Branch $b \in \mathbb{R}^{256}$};
+        \node[box, fill=orange!12, right=0.1cm of lstm, text width=2.6cm] (q) {Query\\$(x,y,t_{\mathrm{future}})$\\$t > T_{\mathrm{obs}}$};
+        \node[box, fill=red!12, below=of b, text width=3.2cm] (out) {$\eta = \langle b, \mathrm{trunk}(q) \rangle$};
+        \draw[arr] (s) -- (lstm);
+        \draw[arr] (lstm) -- (b);
+        \draw[arr] (b) -- (out);
+        \draw[arr] (q.south) |- (out.east);
+      \end{tikzpicture}
+
+      \vspace{6pt}
+      \begin{block}{Lesson}
+        Causal \alert{KHÔNG hy sinh accuracy}. LSTM encoding $>$ flat MLP concatenation.
+      \end{block}
+  \end{columns}
+\end{frame}
+
+% ────────────────────────────────────────────────────────────────
+% JOURNEY SLIDE 7/7 — Tuần 10 Part 2: Multi-horizon eval
+% ────────────────────────────────────────────────────────────────
+\begin{frame}{Tuần 10 (2/2): Multi-horizon eval --- no degradation theo lead time}
+  \small
+  \begin{columns}[T]
+    \column{0.42\linewidth}
+      \textbf{Evaluation protocol:}
+      \begin{itemize}\itemsep1pt
+        \item Random $T_{\mathrm{obs}}$ trong training $\to$ test trên nhiều horizon.
+        \item PDEBench: 16 boundary sensors = 0.098\% diện tích.
+      \end{itemize}
+
+      \vspace{4pt}
+      \textbf{Kết quả:}
+      \begin{center}
+        \scriptsize
+        \begin{tabular}{c c c}
+          \toprule
+          $T_{\mathrm{obs}}$ & $T_{\mathrm{future}}$ & Rel-L2 \\
+          \midrule
+          20 & 81 & 4.72\% \\
+          40 & 61 & 4.43\% \\
+          60 & 41 & 4.33\% \\
+          80 & 21 & 4.46\% \\
+          \midrule
+          \textbf{Avg} & --- & \alert{\textbf{4.46\%}} \\
+          \bottomrule
+        \end{tabular}
+      \end{center}
+
+      \vspace{4pt}
+      $\Rightarrow$ \alert{Không degradation} theo horizon. Khả năng dự báo dài hạn.
+
+    \column{0.58\linewidth}
+      \centering
+      \includegraphics[height=0.55\textheight,keepaspectratio]{../docs/figures/forecast_trajectories.png}
+
+      \vspace{4pt}
+      {\scriptsize Forecast trajectories tại 3 điểm khác nhau, lead time 1--24h.}
+
+      \vspace{4pt}
+      \begin{block}{Cầu nối sang Tuần 11}
+        Causal + multi-horizon OK $\to$ thêm \alert{uncertainty quantification} (variational + observability proxy) = \textbf{OVCNO}.
+      \end{block}
+  \end{columns}
+\end{frame}
+
 % ════════════════════════════════════════════════════════════════
 \section{Kiến trúc OVCNO}
 % ════════════════════════════════════════════════════════════════
